@@ -2,6 +2,7 @@
 import numpy as np
 from scipy.special import gamma, gammaincc
 from scipy.interpolate import RegularGridInterpolator, splrep, splev
+from cosmology import *
 
 
 class LuminosityFunction(object):
@@ -40,6 +41,70 @@ class LuminosityFunction(object):
         
     def Phi_cumulative(self, magnitude, redshift):
         raise NotImplementedError
+
+
+    def Phi_rescaled(self, magnitude, redshift, original_cosmology, 
+                     new_cosmology):
+        """
+        Luminosity function as a function of absoulte magnitude and redshift,
+        in a rescaled cosmology
+        Args:
+            magnitude: array of absolute magnitudes [M-5logh]
+            redshift:  array of redshift
+            original_cosmology: original cosmology
+            new_cosmology:      new cosmology to rescale to
+        Returns:
+            array of number densities [h^3/Mpc^3]
+        """
+        # adjust magnitudes to take into account different luminosity distance
+        rcom_orig = original_cosmology.comoving_distance(redshift)
+        rcom_new = new_cosmology.comoving_distance(redshift)
+        magnitude_new = magnitude - 5*np.log10(rcom_new/rcom_orig)
+
+        # get LF at new magnitudes
+        lf = self.Phi(magnitude_new, redshift)
+
+        # adjust number densities to take into accound volume differences
+        # calculate volume in spherical shells (factors of 4/3 pi cancel out)
+        dz = 0.001
+        vol_orig = original_cosmology.comoving_distance(redshift+dz)**3 - \
+                   original_cosmology.comoving_distance(redshift-dz)**3 
+        vol_new = new_cosmology.comoving_distance(redshift+dz)**3 - \
+                  new_cosmology.comoving_distance(redshift-dz)**3
+
+        return lf*(vol_orig/vol_new)
+
+
+    def Phi_cumulative_rescaled(self, magnitude, redshift, original_cosmology, 
+                                new_cosmology):
+        """
+        Cumulative luminosity function as a function of absoulte 
+        magnitude and redshift, in a rescaled cosmology
+        Args:
+            magnitude: array of absolute magnitudes [M-5logh]
+            redshift:  array of redshift
+            original_cosmology: original cosmology
+            new_cosmology:      new cosmology to rescale to
+        Returns:
+            array of number densities [h^3/Mpc^3]
+        """
+        # adjust magnitudes to take into account different luminosity distance
+        rcom_orig = original_cosmology.comoving_distance(redshift)
+        rcom_new = new_cosmology.comoving_distance(redshift)
+        magnitude_new = magnitude - 5*np.log10(rcom_new/rcom_orig)
+
+        # get LF at new magnitudes
+        lf = self.Phi_cumulative(magnitude_new, redshift)
+
+        # adjust number densities to take into accound volume differences
+        # calculate volume in spherical shells (factors of 4/3 pi cancel out)
+        dz = 0.001
+        vol_orig = original_cosmology.comoving_distance(redshift+dz)**3 - \
+                   original_cosmology.comoving_distance(redshift-dz)**3 
+        vol_new = new_cosmology.comoving_distance(redshift+dz)**3 - \
+                  new_cosmology.comoving_distance(redshift-dz)**3
+
+        return lf*(vol_orig/vol_new)
 
         
 
@@ -256,7 +321,7 @@ def test():
     """
     import matplotlib.pyplot as plt
     
-    mags = np.arange(-16, -23.1, -0.01)
+    mags = np.arange(-16, -23.01, -0.01)
     lf = LuminosityFunctionTarget()
     
     # plot the differential luminosity function
@@ -275,8 +340,62 @@ def test():
     plt.show()
 
 
+def test_rescaling():
+    """
+    Example rescaled LF plots
+    """
+    import matplotlib.pyplot as plt
+
+    cosmo_orig = CosmologyMXXL()
+    cosmo_new = CosmologyUchuu()
+    
+    mags = np.arange(-16, -23.01, -0.01)
+    lf = LuminosityFunctionTarget()
+
+    zs = np.ones(len(mags)) * 0.2
+
+    # differential LF
+    plt.plot(mags, lf.Phi(mags, zs), label="Orig. cosmology (MXXL)")
+    plt.plot(mags, lf.Phi_rescaled(mags, zs, cosmo_orig, cosmo_new), 
+             label="New cosmo (Uchuu)")
+
+    # or plot cumulative LF instead
+    #plt.plot(mags, lf.Phi_cumulative(mags, zs), label="Orig. cosmology (MXXL)")
+    #plt.plot(mags, lf.Phi_cumulative_rescaled(mags, zs, cosmo_orig,cosmo_new), 
+    #         label="New cosmo (Uchuu)")
+    
+    plt.legend(loc="upper right").draw_frame(False)
+    
+    plt.xlabel(r"$^{0.1}M_r - 5 \log h$")
+    plt.ylabel(r"$\phi \ (h^3 \rm Mpc^{-3} mag^{-1})$")
+    plt.xlim(-16,-23)
+    plt.ylim(1e-6, 5e-2)
+    plt.yscale("log")
+    plt.legend(loc="lower left").draw_frame(False)
+
+    plt.show()
+
+
+    # plot ratio
+    plt.axvline(1, c="C0")
+    plt.plot(mags, lf.Phi_rescaled(mags, zs, cosmo_orig, cosmo_new)/lf.Phi(mags, zs), c="C1")
+    
+    plt.xlabel(r"$^{0.1}M_r - 5 \log h$")
+    plt.ylabel("Ratio")
+    plt.xlim(-16,-23)
+    #plt.ylim(1e-6, 5e-2)
+    #plt.yscale("log")
+
+    plt.show()
+
+
 if __name__ == "__main__":
     
-    target_number_densities()
+    # makes file of target number densities (used for HOD fits)
+    #target_number_densities()
     
-    test()
+    # make test plot of LF at a few different redshifts
+    #test()
+
+    # make test plot of LF rescaled from MXXL to Uchuu cosmology
+    test_rescaling()
