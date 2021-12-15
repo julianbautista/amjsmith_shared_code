@@ -34,7 +34,7 @@ def read_mock(filename, Lbox=2000.):
     return pos, vel, index
 
 
-def save_lightcone(filename, ra, dec, z_cos, z_obs):
+def save_lightcone(filename, ra, dec, z_cos, z_obs, index):
     '''
     Saves a shell of the lightcone to a hdf5 file
     '''
@@ -43,6 +43,7 @@ def save_lightcone(filename, ra, dec, z_cos, z_obs):
     f.create_dataset("dec",   data=ra,    compression="gzip")
     f.create_dataset("z_cos", data=z_cos, compression="gzip")
     f.create_dataset("z_obs", data=z_obs, compression="gzip")
+    f.create_dataset("index", data=index, compression="gzip")
     f.close()
 
 
@@ -146,7 +147,7 @@ def make_lightcone():
                                            dist_cuts[i], dist_cuts[i+1], Lbox=Lbox)
         
         savename = "test_z%.2f.hdf5"%z_i # file to save this shell
-        save_lightcone(savename, ra, dec, z_cos, z_obs)
+        save_lightcone(savename, ra, dec, z_cos, z_obs, index)
     
         # the shells will then need to be joined together
         
