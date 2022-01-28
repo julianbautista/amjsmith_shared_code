@@ -97,7 +97,8 @@ for file_number in range(Nfiles):
 print("MAKING LOW Z UNRESOLVED HALO LIGHTCONE")
 
 # this function will loop through the 34 particle files
-# will find minimum (rescaled by cosmology) halo mass needed to make mock to faint app mag limit
+# will find minimum halo mass needed to make mock to faint app mag limit 
+# (taking into account scaling of magnitudes by cosmology)
 # this includes calculating a fit to the halo mass function, and counting the available number
 # of field particles in shells. 
 # These will be read from files (mf_fit_file, Nparticle, Nparticle_shell) if they exist
@@ -110,7 +111,8 @@ halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_param_f
                           central_lookup_file, satellite_lookup_file, mf_fit_file, Nparticle, 
                           Nparticle_shell, box_size=Lbox, SODensity=SODensity, 
                           simulation=simulation, cosmo=cosmo, ph=phase, observer=observer, 
-                          app_mag_faint=app_mag_faint+0.05, cosmology_orig=cosmology_mxxl)
+                          app_mag_faint=app_mag_faint+0.05, cosmology_orig=cosmology_mxxl,
+                         Nfiles=Nfiles)
 
 
 
@@ -152,14 +154,16 @@ for file_number in range(Nfiles):
 print("RESCALING MAGNITUDES (FOR CREATING CUT-SKY MOCK)")
 
 # rescale magnitudes of snapshot to match target LF exactly
+# this will create a new dataset called "abs_mag_rescaled" in the input file
 input_file = output_path+galaxy_snapshot_file
-rescale_snapshot_magnitudes(input_file, Lbox, snapshot_redshift, cosmology_mxxl, cosmology)
+rescale_snapshot_magnitudes(input_file, Lbox, snapshot_redshift, cosmology_mxxl, cosmology,
+                           Nfiles=Nfiles, mag_dataset="abs_mag_rescaled")
 
 # rescale magnitudes of low z lightcone to match target LF exactly
 input_file_res = output_path   + galaxy_lightcone_res
 input_file_unres = output_path + galaxy_lightcone_unres
 rescale_lightcone_magnitudes(input_file_res, input_file_unres, zmax_low, snapshot_redshift, 
-                             cosmology_mxxl, cosmology)
+                        cosmology_mxxl, cosmology, Nfiles=Nfiles, mag_dataset="abs_mag_rescaled")
 
 
 ###############################################    
@@ -178,7 +182,8 @@ for file_number in range(Nfiles):
 
     make_lightcone_lowz(resolved_file, unresolved_file, output_file, 
                         snapshot_redshift, app_mag_faint+0.05, cosmology, box_size=Lbox, 
-                        observer=observer, zmax=zmax_low, cosmology_orig=cosmology_mxxl)
+                        observer=observer, zmax=zmax_low, cosmology_orig=cosmology_mxxl,
+                        mag_dataset="abs_mag_rescaled")
 
 
 
@@ -196,7 +201,7 @@ for file_number in range(Nfiles):
 
     make_lightcone(input_file, output_file, snapshot_redshift, app_mag_faint+0.05, 
                    cosmology, box_size=Lbox, observer=observer,
-                   zmax=zmax, cosmology_orig=cosmology_mxxl)
+                   zmax=zmax, cosmology_orig=cosmology_mxxl, mag_dataset="abs_mag_rescaled")
     
     
     
@@ -342,6 +347,7 @@ f.create_dataset("Data/ra", data=ra, compression="gzip")
 f.create_dataset("Data/z_cos", data=zcos, compression="gzip")
 f.create_dataset("Data/z_obs", data=zobs, compression="gzip")
 f.close()
+
 
 
 

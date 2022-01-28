@@ -12,8 +12,8 @@ from hodpy import lookup
 def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr_r, kcorr_g,
             replication=(0,0,0), zcut=None, mag_cut=None, cosmology_orig=None):
     """
-    Creates a cut sky mock by converting the cartesian coordiantes of a cubic box mock to ra, dec, z
-    Adds evolution to the mock to the magnitudes and colours of the mock
+    Creates a cut sky mock by converting the cartesian coordiantes of a cubic box mock to ra, dec, z.
+    Magnitudes and colours are evolved with redshift
     Args:
         position:  array of comoving position vectors (Mpc/h), in the range -Lbox/2 < pos < Lbox/2
         velocity:  array of proper velocity vectors (km/s)
@@ -24,23 +24,26 @@ def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr
         zsnap:     redshift of simulation snapshot
         kcorr_r:   GAMA_KCorrection object with r-band k-correction
         kcorr_g:   GAMA_KCorrection object with g-band k-correction
-        [replication]: tuple indicating which periodic replication to use. Default value is (0,0,0) (no replications).
-                    E.g. (1,-1,0) would shift x coordinates by Lbox and y coordinates by -Lbox
-        [footprint]: instance of class footprint.DESI_Footprint. If provided, will cut the mock to this footprint.
-                   Default value is None.
-        [is_reachable]: if footprint provided, will find galaxies reachable by fibres if True, or 
-                    assume tiles are circular if False. Default value is False.
-        [zcut]:    If provided, will only return galaxies with z<=zcut. By default will return all galaxies.
-        [mag_cut]: If provided, will only return galaxies with apparent magnitude < mag_cut. By default will return all galaxies.
+        replication: tuple indicating which periodic replication to use. Default value is (0,0,0) 
+                         (ie no replications).
+        zcut:    If provided, will only return galaxies with z<=zcut. By default will return
+                         all galaxies.
+        mag_cut: If provided, will only return galaxies with apparent magnitude < mag_cut. 
+                         By default will return all galaxies.
+        cosmology_orig: instance of astropy.cosmology class. The original simulation cosmology.
+                         If provided, magnitudes will be scaled by cosmology
     Returns:
         ra:   array of ra (deg)
         dec:  array of dec (deg)
         zcos: array of cosmological redshift, which does not include the effect of peculiar velocities
         zobs: array of observed redshift, which includes peculiar velocities.
-        magnitude_new: array of new absolute magnitude, rescaled to match target luminosity function at each redshift
+        magnitude_new: array of new absolute magnitude, rescaled to match target luminosity 
+                          function at each redshift
         app_mag: array of apparent magnitudes (calculated from rescaled magnitudes and colours)
         colour_new: array of g-r colours, which are re-assigned to add evolution
-        index: array of indices. Used to match galaxies between the input and output arrays of this function
+        colour_obs: array of observer-frame g-r colours
+        index: array of indices. Used to match galaxies between the input and output arrays of 
+                  this function
     """
     
     index = np.arange(position.shape[0])
