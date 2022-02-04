@@ -28,7 +28,6 @@ def get_status(ra, dec):
     keep = is_point_in_desi(tiles=tiles_bright, ra=ra, dec=dec)
     STATUS[keep] += 2**1
 
-    #plt.scatter(ra[keep], dec[keep], s=1, edgecolor="none")
 
     # bit2, set this to 1 if in SV3 footprint
     tiles = load_tiles(tilesfile="tiles-sv3.fits")
@@ -37,14 +36,12 @@ def get_status(ra, dec):
     keep = is_point_in_desi(tiles=tiles_bright, ra=ra, dec=dec)
     STATUS[keep] += 2**2
 
-    #plt.scatter(ra[keep], dec[keep], s=1, edgecolor="none")
-
     return STATUS
 
 
 
 # the SV3 tiles file is a ecsv file
-# convert this to fits so it can be read by 
+# convert this to fits file so it can be read by the load_tiles() function
 file_sv3 = "/global/cfs/cdirs/desi/survey/ops/surveyops/trunk/ops/tiles-sv3.ecsv"
 tiles = pd.read_csv(file_sv3, skiprows=17, delimiter=" ")
 tiles = Table.from_pandas(tiles)
