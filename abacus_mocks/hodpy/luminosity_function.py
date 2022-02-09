@@ -92,33 +92,62 @@ class LuminosityFunction(object):
     def Phi_cumulative(self, magnitude, redshift):
         raise NotImplementedError
         
-    def Phi_box_rescaled(self, magnitude, redshift, cosmo_orig, cosmo_new):
-        
-        # rescale LF by cosmology, for cubic box
+    def Phi_rescaled(self, magnitude, redshift, cosmo_orig, cosmo_new):
+        """
+        Luminosity function as a function of absoulte magnitude and redshift,
+        rescaled to a new cosmology
+        Args:
+            magnitude: array of absolute magnitudes, in new cosmology [M-5logh]
+            redshift: array of redshift
+            cosmo_orig: old cosmology
+            cosmo_new: new cosmology
+        Returns:
+            array of number densities [h^3/Mpc^3]
+        """
         
         # comoving distances in both cosmologies
         r_orig= cosmo_orig.comoving_distance(redshift)
         r_new = cosmo_new.comoving_distance(redshift)
         
-        # get rescaled magnitudes
-        magnitude_new = magnitude - 5*np.log10(r_new/r_orig)
+        # volume element in each cosmology
+        vol_orig = cosmo_orig.comoving_distance(redshift)**2 / \
+                                                    (cosmo_orig.H(redshift)/cosmo_orig.H(0))
+        vol_new = cosmo_new.comoving_distance(redshift)**2 / (cosmo_new.H(redshift)/cosmo_new.H(0))
+        
+        # get rescaled magnitudes in the old cosmology
+        magnitude_old = magnitude + 5*np.log10(r_new/r_orig)
         
         # get rescaled LF
-        return self.Phi(magnitude_new, redshift)*(r_orig/r_new)**3
+        return self.Phi(magnitude_old, redshift)*(vol_orig/vol_new)
     
-    def Phi_cumulative_box_rescaled(self, magnitude, redshift, cosmo_orig, cosmo_new):
-        
-        # rescale LF by cosmology, for cubic box
+    
+    def Phi_cumulative_rescaled(self, magnitude, redshift, cosmo_orig, cosmo_new):
+        """
+        Cumulative uminosity function as a function of absoulte magnitude and redshift,
+        rescaled to a new cosmology
+        Args:
+            magnitude: array of absolute magnitudes, in new cosmology [M-5logh]
+            redshift: array of redshift
+            cosmo_orig: old cosmology
+            cosmo_new: new cosmology
+        Returns:
+            array of number densities [h^3/Mpc^3]
+        """
         
         # comoving distances in both cosmologies
         r_orig= cosmo_orig.comoving_distance(redshift)
         r_new = cosmo_new.comoving_distance(redshift)
         
-        # get rescaled magnitudes
-        magnitude_new = magnitude - 5*np.log10(r_new/r_orig)
+        # volume element in each cosmology
+        vol_orig = cosmo_orig.comoving_distance(redshift)**2 / \
+                                                    (cosmo_orig.H(redshift)/cosmo_orig.H(0))
+        vol_new = cosmo_new.comoving_distance(redshift)**2 / (cosmo_new.H(redshift)/cosmo_new.H(0))
+        
+        # get rescaled magnitudes in the old cosmology
+        magnitude_old = magnitude + 5*np.log10(r_new/r_orig)
         
         # get rescaled LF
-        return self.Phi_cumulative(magnitude_new, redshift)*(r_orig/r_new)**3
+        return self.Phi_cumulative(magnitude_old, redshift)*(vol_orig/vol_new)
         
 
     def mag2lum(self, magnitude):
@@ -172,7 +201,7 @@ class LuminosityFunction(object):
         if cosmo_new is None:
             log_n1 = np.log10(self.Phi_cumulative(magnitude_bins, original_redshift))
         else:
-            log_n1 = np.log10(self.Phi_cumulative_box_rescaled(magnitude_bins, 
+            log_n1 = np.log10(self.Phi_cumulative_rescaled(magnitude_bins, 
                                             original_redshift, cosmo_orig, cosmo_new))
         idx1 = np.searchsorted(log_n1, log_n)
         frac = (log_n - log_n1[idx1-1]) / (log_n1[idx1] - log_n1[idx1-1])
@@ -181,18 +210,18 @@ class LuminosityFunction(object):
 
         return new_magnitude
         
-        
     
     def rescale_magnitude(self, magnitude, original_redshift, new_redshift,
                          cosmo_orig=None, cosmo_new=None):
         
+        # rescale magnitudes to match the evolving target LF
         # if cosmologies provided, also includes a cosmology rescaling
         
         # calculate number density for each galaxy
         if cosmo_new is None:
             log_n = np.log10(self.Phi_cumulative(magnitude, original_redshift))
         else:
-            log_n = np.log10(self.Phi_cumulative_box_rescaled(magnitude, 
+            log_n = np.log10(self.Phi_cumulative_rescaled(magnitude, 
                                     original_redshift, cosmo_orig, cosmo_new))
         
         # array to store new magnitudes
@@ -216,7 +245,7 @@ class LuminosityFunction(object):
             if cosmo_new is None:
                 log_n1 = np.log10(self.Phi_cumulative(magnitude_bins, redshift_bins[i]))
             else:
-                log_n1 = np.log10(self.Phi_cumulative_box_rescaled(magnitude_bins, 
+                log_n1 = np.log10(self.Phi_cumulative_rescaled(magnitude_bins, 
                                             redshift_bins[i], cosmo_orig, cosmo_new))
             idx1 = np.searchsorted(log_n1, log_ni)
             frac = (log_ni - log_n1[idx1-1]) / (log_n1[idx1] - log_n1[idx1-1])
@@ -227,7 +256,7 @@ class LuminosityFunction(object):
             if cosmo_new is None:
                 log_n2 = np.log10(self.Phi_cumulative(magnitude_bins, redshift_bins[i+1]))
             else:
-                log_n2 = np.log10(self.Phi_cumulative_box_rescaled(magnitude_bins, 
+                log_n2 = np.log10(self.Phi_cumulative_rescaled(magnitude_bins, 
                                             redshift_bins[i+1], cosmo_orig, cosmo_new))
             idx2 = np.searchsorted(log_n2, log_ni)
             frac = (log_ni - log_n2[idx2-1]) / (log_n2[idx2] - log_n2[idx2-1])
