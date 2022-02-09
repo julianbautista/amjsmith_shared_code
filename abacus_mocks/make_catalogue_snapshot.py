@@ -24,7 +24,7 @@ from hodpy.hod_bgs import HOD_BGS_Simple
 
 def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology, 
          hod_param_file, central_lookup_file, satellite_lookup_file, box_size=2000.,
-        zmax=None, observer=(0,0,0), log_mass_min=None, log_mass_max=None):
+        zmax=None, observer=(0,0,0), log_mass_min=None, log_mass_max=None, cosmology_old=None):
     """
     Create a HOD mock catalogue by populating the AbacusSummit simulation snapshot
     with galaxies. The output galaxy catalogue is in Cartesian coordinates
@@ -119,7 +119,11 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
     # add g-r colours
     print("assigning g-r colours")
     col = ColourNew()
-    gal_cat.add_colours(col)
+    if cosmology_old is None:
+        gal_cat.add_colours(col)
+    else:
+        # use magnitudes in original cosmology
+        gal_cat.add_colours(col, cosmology_old, cosmology)
 
     # cut to galaxies brighter than absolute magnitude threshold
     gal_cat.cut(gal_cat.get("abs_mag") <= mag_faint)
@@ -140,7 +144,8 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
 def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint, 
                     cosmology, hod_param_file, central_lookup_file, 
                     satellite_lookup_file, box_size=2000., SODensity=200,
-                    zmax=0.6, observer=(0,0,0), log_mass_min=None, log_mass_max=None):
+                    zmax=0.6, observer=(0,0,0), log_mass_min=None, log_mass_max=None,
+                    cosmology_old=None):
     """
     Create a HOD mock catalogue by populating a hdf5 file of unresolved haloes. 
     The output galaxy catalogue is in Cartesian coordinates
@@ -235,7 +240,11 @@ def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint,
     # add g-r colours
     print("assigning g-r colours")
     col = ColourNew()
-    gal_cat.add_colours(col)
+    if cosmology_old is None:
+        gal_cat.add_colours(col)
+    else:
+        # use magnitudes in original cosmology
+        gal_cat.add_colours(col, cosmology_old, cosmology)
 
     # cut to galaxies brighter than absolute magnitude threshold
     gal_cat.cut(gal_cat.get("abs_mag") <= mag_faint)

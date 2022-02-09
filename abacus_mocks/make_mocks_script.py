@@ -89,7 +89,7 @@ for file_number in range(Nfiles):
     output_file = output_path + galaxy_snapshot_file%file_number
     
     main(input_file, output_file, snapshot_redshift, mag_faint_snapshot, cosmology, hod_param_file,
-             central_lookup_file, satellite_lookup_file)
+             central_lookup_file, satellite_lookup_file, cosmology_old=cosmology_mxxl)
     
     
     
@@ -129,7 +129,7 @@ for file_number in range(Nfiles):
     main_unresolved(input_file, output_file, snapshot_redshift, mag_faint_lightcone, 
                 cosmology, hod_param_file, central_lookup_file, 
                 satellite_lookup_file, SODensity=SODensity, 
-                zmax=zmax_low+0.01, log_mass_max=mass_cut)
+                zmax=zmax_low+0.01, log_mass_max=mass_cut, cosmology_old=cosmology_mxxl)
     
     
 ###############################################    
@@ -146,7 +146,7 @@ for file_number in range(Nfiles):
 
     main(input_file, output_file, snapshot_redshift, mag_faint_lightcone, cosmology, 
          hod_param_file, central_lookup_file, satellite_lookup_file, zmax=zmax_low+0.01, 
-         observer=observer, log_mass_min=mass_cut)
+         observer=observer, log_mass_min=mass_cut, cosmology_old=cosmology_mxxl)
     
     
     
