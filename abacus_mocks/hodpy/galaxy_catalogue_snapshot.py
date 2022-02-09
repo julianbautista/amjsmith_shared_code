@@ -126,7 +126,7 @@ class GalaxyCatalogueSnapshot(GalaxyCatalogue):
         self.add("zcos", np.ones(pos.shape[0])*self.get_halo('zcos')[0])
 
         
-    def add_colours(self, colour):
+    def add_colours(self, colour, cosmo_orig=None, cosmo_new=None):
         """
         Add colours to the galaxy catalogue.
 
@@ -139,7 +139,13 @@ class GalaxyCatalogueSnapshot(GalaxyCatalogue):
         is_sat = self.get("is_sat")
         abs_mag = self.get("abs_mag")
         z = self.get("zcos")
-
+        
+        if not cosmo_new is None:
+            # convert magnitudes back to the original cosmology for colour assignment
+            r_orig= cosmo_orig.comoving_distance(redshift)
+            r_new = cosmo_new.comoving_distance(redshift)
+            abs_mag = abs_mag + 5*np.log10(r_new/r_orig)
+            
         col[is_cen] = colour.get_central_colour(abs_mag[is_cen], z[is_cen])
         col[is_sat] = colour.get_satellite_colour(abs_mag[is_sat], z[is_sat])
 
