@@ -824,7 +824,7 @@ def rescale_lightcone_magnitudes(filename_resolved, filename_unresolved,
     for i in range(Nfiles):
         print(i)
         # resolved files
-        if exists(filename_resolved%i)
+        if exists(filename_resolved%i):
             f = h5py.File(filename_resolved%i,"r")
             abs_mag[i] = f["abs_mag"][...]
             pos[i] = f["pos"][...]
@@ -838,7 +838,7 @@ def rescale_lightcone_magnitudes(filename_resolved, filename_unresolved,
             is_res[i] = np.ones(0, dtype="bool")
         
         # unresolved files
-        if exists(filename_unresolved%i)
+        if exists(filename_unresolved%i):
             f = h5py.File(filename_unresolved%i,"r")
             abs_mag[i+Nfiles] = f["abs_mag"][...]
             pos[i+Nfiles] = f["pos"][...]
