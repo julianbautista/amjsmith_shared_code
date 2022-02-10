@@ -142,8 +142,8 @@ class GalaxyCatalogueSnapshot(GalaxyCatalogue):
         
         if not cosmo_new is None:
             # convert magnitudes back to the original cosmology for colour assignment
-            r_orig= cosmo_orig.comoving_distance(redshift)
-            r_new = cosmo_new.comoving_distance(redshift)
+            r_orig= cosmo_orig.comoving_distance(z)
+            r_new = cosmo_new.comoving_distance(z)
             abs_mag = abs_mag + 5*np.log10(r_new/r_orig)
             
         col[is_cen] = colour.get_central_colour(abs_mag[is_cen], z[is_cen])
