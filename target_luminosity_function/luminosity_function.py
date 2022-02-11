@@ -59,18 +59,16 @@ class LuminosityFunction(object):
         # adjust magnitudes to take into account different luminosity distance
         rcom_orig = original_cosmology.comoving_distance(redshift)
         rcom_new = new_cosmology.comoving_distance(redshift)
-        magnitude_new = magnitude - 5*np.log10(rcom_new/rcom_orig)
+        magnitude_old = magnitude + 5*np.log10(rcom_new/rcom_orig)
 
         # get LF at new magnitudes
-        lf = self.Phi(magnitude_new, redshift)
+        lf = self.Phi(magnitude_old, redshift)
 
         # adjust number densities to take into accound volume differences
-        # calculate volume in spherical shells (factors of 4/3 pi cancel out)
-        dz = 0.001
-        vol_orig = original_cosmology.comoving_distance(redshift+dz)**3 - \
-                   original_cosmology.comoving_distance(redshift-dz)**3 
-        vol_new = new_cosmology.comoving_distance(redshift+dz)**3 - \
-                  new_cosmology.comoving_distance(redshift-dz)**3
+        vol_orig = original_cosmology.comoving_distance(redshift)**2 / \
+                      (original_cosmology.H(redshift)/original_cosmology.H(0))
+        vol_new = new_cosmology.comoving_distance(redshift)**2 / \
+                      (new_cosmology.H(redshift)/new_cosmology.H(0))
 
         return lf*(vol_orig/vol_new)
 
@@ -91,19 +89,18 @@ class LuminosityFunction(object):
         # adjust magnitudes to take into account different luminosity distance
         rcom_orig = original_cosmology.comoving_distance(redshift)
         rcom_new = new_cosmology.comoving_distance(redshift)
-        magnitude_new = magnitude - 5*np.log10(rcom_new/rcom_orig)
+        magnitude_old = magnitude + 5*np.log10(rcom_new/rcom_orig)
 
         # get LF at new magnitudes
-        lf = self.Phi_cumulative(magnitude_new, redshift)
+        lf = self.Phi_cumulative(magnitude_old, redshift)
 
         # adjust number densities to take into accound volume differences
-        # calculate volume in spherical shells (factors of 4/3 pi cancel out)
-        dz = 0.001
-        vol_orig = original_cosmology.comoving_distance(redshift+dz)**3 - \
-                   original_cosmology.comoving_distance(redshift-dz)**3 
-        vol_new = new_cosmology.comoving_distance(redshift+dz)**3 - \
-                  new_cosmology.comoving_distance(redshift-dz)**3
-
+        vol_orig = original_cosmology.comoving_distance(redshift)**2 / \
+                      (original_cosmology.H(redshift)/original_cosmology.H(0))
+        vol_new = new_cosmology.comoving_distance(redshift)**2 / \
+                      (new_cosmology.H(redshift)/new_cosmology.H(0))
+        
+        
         return lf*(vol_orig/vol_new)
 
         
