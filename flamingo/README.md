@@ -80,11 +80,3 @@ Evolving Schechter fit to GAMA luminosity function
 
 Tabluated file of SDSS luminosity function
 
-
-
-
-
-
-
-lookup/
-
