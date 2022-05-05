@@ -388,8 +388,7 @@ def merge_files(output_file, cosmo, Lbox, zmax=0.6):
 
     # datasets to add to the new file
     properties = "ra", "dec", "zcos", "zobs", "app_mag", "abs_mag", "col", \
-                 "col_obs", "is_cen", "halo_mass", "Mstar", "pos", "vel",\
-                 "is_res"
+                 "col_obs", "is_cen", "halo_mass", "Mstar", "pos", "vel"
 
     for p in range(len(properties)):
 
