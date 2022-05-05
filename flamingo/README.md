@@ -17,7 +17,7 @@ The function `make_cut_sky` loops through periodic replications of the box, assi
 and g-r colour (from SDSS and GAMA measurements, both k-corrected to z=0.1, with no dust correction). The magnitudes
 are assigned by ranking galaxies based on Vmax, and colours are assigned randomly.
 
-The magnitudes are initially assigned to match the target luminoisty function at the snapshot redshift (in this case z=0.1).
+The magnitudes are initially assigned to match the target luminoisty function at the snapshot redshift (in this case z=0.2).
 When converting to equitorial coordinates, a redshift-dependent rescaling is applied, so that the evolution of the 
 LF is correct. This is needed so that the mock achievs the correct n(z). The random colour assignment is done based on the
 rescaled magnitude, and also depends on if a galaxy is a central or satellite.
