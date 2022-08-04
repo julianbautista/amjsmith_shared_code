@@ -14,6 +14,8 @@ class Catalogue(object):
         self.size = 0
         self.cosmology = cosmology
 
+        self.c = cosmology.c
+
 
     def get(self, prop):
         """
@@ -119,7 +121,7 @@ class Catalogue(object):
         Returns:
             array of observed redshift
         """
-        z_obs = ((1 + z_cos) * (1 + v_los/3e5)) - 1.
+        z_obs = ((1 + z_cos) * (1 + v_los/self.c)) - 1.
         return z_obs
 
 
@@ -133,7 +135,7 @@ class Catalogue(object):
         Returns:
             array of line of sight velocity [km/s]
         """
-        v_los = 3e5 * ((1. + z_obs)/(1. + z_cos) - 1)
+        v_los = self.c * ((1. + z_obs)/(1. + z_cos) - 1)
         return v_los
     
     

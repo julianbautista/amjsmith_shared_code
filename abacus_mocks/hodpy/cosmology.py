@@ -17,6 +17,8 @@ class Cosmology(object):
     """
     def __init__(self, cosmo):
 
+        self.c = 299792.458 #km/s
+        
         self.h0     = cosmo.h
         self.OmegaM = cosmo.Om0
 
@@ -124,9 +126,8 @@ class Cosmology(object):
         Returns:
             Comoving volume element
         """
-        c    = 3e5 # km/s
         H100 = 100 # km/s/Mpc
-        return 4*np.pi*(c/H100) * self.comoving_distance(z)**2 / \
+        return 4*np.pi*(self.c/H100) * self.comoving_distance(z)**2 / \
                                 self.cosmo_nbodykit.efunc(z)
     
 
