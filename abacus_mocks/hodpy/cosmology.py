@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 import nbodykit.cosmology as cosmology_nbodykit
+import nbodykit.cosmology.cosmology
 
 from hodpy import lookup
 
@@ -167,27 +168,8 @@ class CosmologyAbacus(Cosmology):
     
     def __init__(self, cosmo):
         
-        #self.__param_array = np.loadtxt(lookup.abacus_cosmologies, delimiter=",")
-        self.__param_array = pd.read_csv(lookup.abacus_cosmologies, sep=",").to_numpy()
-        omega_b, omega_cdm, h, A_s, n_s, alpha_s, N_ur, N_ncdm, omega_ncdm, w0_fld, \
-                            wa_fld, sigma8_m, sigma8_cb = self.__get_params(cosmo)
-        Omega_b = omega_b/h**2
-        Omega_cdm = omega_cdm/h**2
+        filename = lookup.path+"/Cosmologies/CLASS_c%03d.ini"%cosmo
         
-        cosmo_nbody = cosmology_nbodykit.cosmology.Cosmology(h=h, T0_cmb=2.7255, 
-                        Omega0_b=Omega_b, Omega0_cdm=Omega_cdm, N_ur=N_ur, 
-                                            m_ncdm=[0.06], n_s=n_s, A_s=A_s)
+        cosmo_nbody = nbodykit.cosmology.cosmology.Cosmology.from_file(filename)
         
         super().__init__(cosmo_nbody)
-        
-        
-    def __get_params(self, cosmo):
-        
-        cosmo_number = np.zeros(len(self.__param_array[:,0]), dtype="i")
-        for i in range(len(self.__param_array[:,0])):
-            cosmo_number[i] = int(self.__param_array[i,0][11:])
-        
-        idx = np.where(cosmo_number==cosmo)[0][0]
-        
-        return np.array(self.__param_array[idx,2:], dtype="f")
-    
