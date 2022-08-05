@@ -408,7 +408,8 @@ class HOD_BGS(HOD):
         return halo_index, self.__satellite_interpolator(points)
 
     
-    def __integration_function(self, logM, mag, z, logMmin, logM1, logM0, sigmalogM, alpha):
+    def __integration_function(self, logM, mag, z, logMmin, logM1, logM0, sigmalogM, alpha,
+                              galaxies):
         # function to integrate (number density of haloes * number of galaxies from HOD)
                 
         # mean number of galaxies per halo
@@ -417,7 +418,13 @@ class HOD_BGS(HOD):
         Ncen = spline.cumulative_spline_kernel(logM, mean=logMmin, sig=sigmalogM/np.sqrt(2))
         Nsat = Ncen * ((10**logM - 10**logM0)/10**logM1)**alpha
         Nsat[np.where(np.isnan(Nsat))[0]] = 0
-        N_gal = Ncen + Nsat
+        
+        if galaxies=="all":
+            N_gal = Ncen + Nsat
+        elif galaxies=="cen":
+            N_gal = Ncen
+        elif galaxies=="sat":
+            N_gal = Nsat
         
         # number density of haloes
         n_halo = self.mf.number_density(np.array([logM,]))
@@ -426,7 +433,7 @@ class HOD_BGS(HOD):
     
     
     def get_n_HOD(self, magnitude, redshift, logMmin, logM1, logM0, sigmalogM, alpha,
-                    Mmin=10, Mmax=16):
+                    Mmin=10, Mmax=16, galaxies="all"):
         """
         Returns the number density of galaxies predicted by the HOD. This is evaluated from
         integrating the halo mass function multiplied by the HOD. The arguments must be
@@ -439,5 +446,6 @@ class HOD_BGS(HOD):
             number density
         """
         return quad(self.__integration_function, Mmin, Mmax, 
-                    args=(magnitude, redshift, logMmin, logM1, logM0, sigmalogM, alpha))[0]
+                    args=(magnitude, redshift, logMmin, logM1, logM0, sigmalogM, alpha, galaxies))[0]
+
 
