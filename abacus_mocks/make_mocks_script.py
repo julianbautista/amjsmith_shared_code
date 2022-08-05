@@ -4,8 +4,7 @@ import numpy as np
 import sys
 import os
 import h5py
-from hodpy.cosmology import CosmologyMXXL#, CosmologyAbacus
-from hodpy.cosmology_camb import CosmologyAbacus
+from hodpy.cosmology import CosmologyMXXL, CosmologyAbacus
 from hodpy.hod_bgs_snapshot_abacus import HOD_BGS
 from make_catalogue_snapshot import *
 import fitsio

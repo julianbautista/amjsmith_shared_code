@@ -466,7 +466,7 @@ def num_in_rmax(p, rmax, box_size):
     
 def num_in_shell(p, rmin, rmax, box_size=2000):
     
-  '''
+    '''
     Return number of particles within a shell rmin < r < rmax with observer at
     the origin, and applying the necessary number of periodic replications
 
