@@ -14,13 +14,15 @@ class GalaxyCatalogueSnapshot(GalaxyCatalogue):
         haloes:    halo catalogue
         cosmology: object of the class Cosmology
         box_size:  comoving simulation box length (Mpc/h)
+        periodic:  apply periodic boundary conditions, default False
     """
-    def __init__(self, haloes, cosmology, box_size):
+    def __init__(self, haloes, cosmology, box_size, periodic=False):
         self._quantities = {}
         self.size = 0
         self.haloes = haloes
         self.box_size = box_size
         self.cosmology = cosmology
+        self.periodic = periodic
         
 
     def _get_positions(self, distance):
@@ -37,10 +39,11 @@ class GalaxyCatalogueSnapshot(GalaxyCatalogue):
         pos = pos_halo + pos_rel
 
         # deal with periodic boundary
-        idx = pos > self.box_size/2.
-        pos[idx] -= self.box_size
-        idx = pos < -self.box_size/2.
-        pos[idx] += self.box_size
+        if self.periodic:
+            idx = pos > self.box_size/2.
+            pos[idx] -= self.box_size
+            idx = pos < -self.box_size/2.
+            pos[idx] += self.box_size
 
         return pos
 
@@ -86,12 +89,10 @@ class GalaxyCatalogueSnapshot(GalaxyCatalogue):
         pos_sat[particle_index==-1] = 0.
         vel_sat[particle_index==-1] = 0.
         
-        pos[is_sat] = pos_sat
-        vel[is_sat] = vel_sat
-        
         # apply periodic boundary conditions
-        pos[pos >= self.box_size/2.] -= self.box_size
-        pos[pos < -self.box_size/2.] += self.box_size
+        if self.periodic:
+            pos[pos >= self.box_size/2.] -= self.box_size
+            pos[pos < -self.box_size/2.] += self.box_size
     
         return pos, vel
 
