@@ -5,13 +5,13 @@ import gc
 from abacusnbody.data.compaso_halo_catalog import CompaSOHaloCatalog
 from abacusnbody.data.read_abacus import read_asdf
 import h5py
+import fitsio
 from os.path import exists
 
 from cut_sky_evolution import cut_sky
 
 from hodpy.halo_catalogue import AbacusSnapshot, AbacusSnapshotUnresolved
 from hodpy.galaxy_catalogue_snapshot import GalaxyCatalogueSnapshot
-from hodpy.cosmology import CosmologyAbacus
 from hodpy.hod_bgs_snapshot_abacus import HOD_BGS
 from hodpy.colour import ColourNew
 from hodpy import lookup
@@ -21,10 +21,11 @@ from hodpy.luminosity_function import LuminosityFunctionTargetBGS
 from hodpy.hod_bgs import HOD_BGS_Simple
 
 
-
 def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology, 
-         hod_param_file, central_lookup_file, satellite_lookup_file, box_size=2000.,
-        zmax=None, observer=(0,0,0), log_mass_min=None, log_mass_max=None, cosmology_old=None):
+         hod_param_file, central_lookup_file, satellite_lookup_file,
+         mass_function, box_size=2000., zmax=None, observer=(0,0,0),
+         log_mass_min=None, log_mass_max=None, cosmology_old=None,
+         replication=(0,0,0)):
     """
     Create a HOD mock catalogue by populating the AbacusSummit simulation snapshot
     with galaxies. The output galaxy catalogue is in Cartesian coordinates
@@ -40,6 +41,7 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
                                 doesn't already exist
         satellite_lookup_file: lookup file of satellite magnitudes, will be created if the file
                                 doesn't already exist
+        mass_function:     object of class hodpy.mass_function.MassFunction
         box_size:          float, simulation box size (Mpc/h)
         zmax:              float, maximum redshift. If provided, will cut the box to only haloes
                                 that are within a comoving distance to the observer that 
@@ -48,6 +50,9 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
                                 observer is at the origin (0,0,0) Mpc/h
         log_mass_min:      float, log10 of minimum halo mass cut, in Msun/h
         log_mass_max:      float, log10 of maximum halo mass cut, in Msun/h
+        cosmology_old:     the original cosmology, used when applying cosmology rescaling
+        replication:       tuple of length 3 indicating the replication, (i,j,k), where the positions
+                           in the x direction are shifted by i*box_size, etc. By default (0,0,0)
     """
 
     import warnings
@@ -89,8 +94,16 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
             pos[:,i] -= observer[i]
             
         #apply periodic boundary conditions, so -Lbox/2 < pos < Lbox/2
+        #if apply_periodic==True:
         pos[pos>box_size/2.]-=box_size
         pos[pos<-box_size/2.]+=box_size
+        
+        # replicate the box
+        pos[:,0] += replication[0]*box_size
+        pos[:,1] += replication[1]*box_size
+        pos[:,2] += replication[2]*box_size
+        
+        halo_cat.add("pos", pos)
         
         dist = np.sum(pos**2, axis=1)**0.5
         dist_max = cosmology.comoving_distance(np.array([zmax,]))[0]
@@ -107,7 +120,8 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
     # use hods to populate galaxy catalogue
     print("read HODs")
     hod = HOD_BGS(cosmology, mag_faint, hod_param_file, central_lookup_file, satellite_lookup_file,
-                  replace_central_lookup=True, replace_satellite_lookup=True)
+                  replace_central_lookup=True, replace_satellite_lookup=True, 
+                  mass_function=mass_function)
     
     print("add galaxies")
     gal_cat.add_galaxies(hod)
@@ -115,10 +129,10 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
     # position galaxies around their haloes
     print("position galaxies")
     gal_cat.position_galaxies(particles=False, conc="conc")
-
+    
     # add g-r colours
     print("assigning g-r colours")
-    col = ColourNew()
+    col = ColourNew(hod=hod)
     if cosmology_old is None:
         gal_cat.add_colours(col)
     else:
@@ -132,6 +146,13 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
         # if we are making a lightcone and the observer is not at the origin,
         # this will shift the coords back to the original Cartesian coordinates of the snapshot
         pos = gal_cat.get("pos")
+        for i in range(3):
+            pos[:,i] += observer[i]
+        
+        gal_cat.add("pos", pos)
+        
+    else:
+        pos = gal_cat.get("pos")
         pos[pos>box_size/2.]-=box_size
         pos[pos<-box_size/2.]+=box_size
         gal_cat.add("pos", pos)
@@ -143,7 +164,7 @@ def main(input_file, output_file, snapshot_redshift, mag_faint, cosmology,
     
 def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint, 
                     cosmology, hod_param_file, central_lookup_file, 
-                    satellite_lookup_file, box_size=2000., SODensity=200,
+                    satellite_lookup_file, mass_function, box_size=2000., SODensity=200,
                     zmax=0.6, observer=(0,0,0), log_mass_min=None, log_mass_max=None,
                     cosmology_old=None):
     """
@@ -161,7 +182,9 @@ def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint,
                                 doesn't already exist
         satellite_lookup_file: lookup file of satellite magnitudes, will be created if the file
                                 doesn't already exist
+        mass_function:     object of class hodpy.mass_function.MassFunction
         box_size:          float, simulation box size (Mpc/h)
+        SODensity:         spherical overdensity
         zmax:              float, maximum redshift. If provided, will cut the box to only haloes
                                 that are within a comoving distance to the observer that 
                                 corresponds to zmax. By default, is None
@@ -169,6 +192,7 @@ def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint,
                                 observer is at the origin (0,0,0) Mpc/h
         log_mass_min:      float, log10 of minimum halo mass cut, in Msun/h
         log_mass_max:      float, log10 of maximum halo mass cut, in Msun/h
+        cosmology_old:     the original cosmology, used when applying cosmology rescaling
     """
     
     import warnings
@@ -206,10 +230,8 @@ def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint,
         # make sure observer is at origin
         for i in range(3):
             pos[:,i] -= observer[i]
-            
-        #apply periodic boundary conditions, so -Lbox/2 < pos < Lbox/2
-        pos[pos>box_size/2.]-=box_size
-        pos[pos<-box_size/2.]+=box_size
+        
+        halo_cat.add("pos", pos)
         
         dist = np.sum(pos**2, axis=1)**0.5
         dist_max = cosmology.comoving_distance(np.array([zmax,]))[0]
@@ -224,7 +246,8 @@ def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint,
     print("read HODs")
     hod = HOD_BGS(cosmology, mag_faint, hod_param_file, central_lookup_file, 
                   satellite_lookup_file,
-                  replace_central_lookup=True, replace_satellite_lookup=True)
+                  replace_central_lookup=True, replace_satellite_lookup=True,
+                  mass_function=mass_function)
     
     # empty galaxy catalogue
     print("create galaxy catalogue")
@@ -239,7 +262,7 @@ def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint,
 
     # add g-r colours
     print("assigning g-r colours")
-    col = ColourNew()
+    col = ColourNew(hod=hod)
     if cosmology_old is None:
         gal_cat.add_colours(col)
     else:
@@ -253,8 +276,8 @@ def main_unresolved(input_file, output_file, snapshot_redshift, mag_faint,
         # if we are making a lightcone and the observer is not at the origin,
         # this will shift the coords back to the original Cartesian coordinates of the snapshot
         pos = gal_cat.get("pos")
-        pos[pos>box_size/2.]-=box_size
-        pos[pos<-box_size/2.]+=box_size
+        for i in range(3):
+            pos[:,i] += observer[i]
         gal_cat.add("pos", pos)
     
     # save catalogue to file
@@ -378,8 +401,172 @@ def get_min_mass(rfaint, hod, cosmo_orig, cosmo_new):
     
     
     
-def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_param_file, 
-                              central_lookup_file, satellite_lookup_file, mf_fit_file,
+def replications(box_size, rmax):
+    """
+    returns number of periodic replications needed. 
+    0 = no replications, 1 box total
+    1 = replicate at each of the 6 faces, 7 boxes in total
+    2 = replicate at faces and edges, 19 boxes in total
+    3 = replicate at faces, edges and corners, 27 boxes in total
+
+    Args:
+        box_size: Simulation box size, in Mpc/h
+        rmax:     Comoving distance in Mpc/h corresponding to the maximum redshift of the lightcone
+    """
+
+    if rmax < box_size/2.: return 0
+    
+    for i in range(100):
+        if rmax >= (box_size*(2*i+1))/2.:
+            n = 1+i*3
+        if rmax >= np.sqrt(2)*(box_size*(2*i+1))/2.:
+            n = 2+i*3
+        if rmax >= np.sqrt(3)*(box_size*(2*i+1))/2.:
+            n = 3+i*3
+
+    return n
+    
+
+def num_in_rmax(p, rmax, box_size):
+    '''
+    Return number of particles within a cube of side length 2*rmax, with observer in
+    centre, applying the necessary number of periodic replications
+
+    Args:
+        p:        3d position vectors of particles
+        rmax:     Comoving distance in Mpc/h corresponding to the maximum redshift of the lightcone
+        box_size: Simulation box size, in Mpc/h
+    '''
+
+    nrep = 0
+    for i in range(100):
+        if rmax >= (box_size*(2*i+1))/2.:
+            nrep = i+1
+        else: 
+            break
+            
+    number=0
+    
+    for i in range(-nrep, nrep+1):
+        for j in range(-nrep, nrep+1):
+            for k in range(-nrep, nrep+1):
+                p_i = p.copy()
+                p_i[:,0] += box_size*i
+                p_i[:,1] += box_size*j
+                p_i[:,2] += box_size*k
+                
+                keep = np.logical_and.reduce([p_i[:,0] <= rmax, p_i[:,0] >= -rmax,
+                                              p_i[:,1] <= rmax, p_i[:,1] >= -rmax,
+                                              p_i[:,2] <= rmax, p_i[:,2] >= -rmax])
+                
+                number += np.count_nonzero(keep)
+                
+    return number
+    
+    
+def num_in_shell(p, rmin, rmax, box_size=2000):
+    
+  '''
+    Return number of particles within a shell rmin < r < rmax with observer at
+    the origin, and applying the necessary number of periodic replications
+
+    Args:
+        p:        3d position vectors of particles
+        rmin:     inner radius of shell, in Mpc/h
+        rmax:     outer radius of shell, in Mpc/h
+        box_size: Simulation box size, in Mpc/h
+    '''
+  
+    nrep = 0
+    for i in range(100):
+        if rmax >= (box_size*(2*i+1))/2.:
+            nrep = i+1
+        else: 
+            break
+            
+    number=0
+    
+    rmin2 = rmin**2
+    rmax2 = rmax**2
+    
+    for i in range(-nrep, nrep+1):
+        for j in range(-nrep, nrep+1):
+            for k in range(-nrep, nrep+1):
+                p_i = p.copy()
+                p_i[:,0] += box_size*i
+                p_i[:,1] += box_size*j
+                p_i[:,2] += box_size*k
+                
+                dist2 = np.sum(p_i**2, axis=1)
+                
+                keep = np.logical_and(dist2>=rmin2, dist2<rmax2)
+                
+                number += np.count_nonzero(keep)
+                
+    return number
+
+
+
+def particles_in_shell(pos, vel, box_size, rmin, rmax):
+    '''
+    Cuts to the particles in a shell rmin < r < rmax, with observer at
+    the origin, and applying the necessary number of periodic replications
+
+    Args:
+        pos:      3d position vectors of particles
+        vel:      3d velocity vectors of particles
+        box_size: Simulation box size, in Mpc/h
+        rmin:     inner radius of shell, in Mpc/h
+        rmax:     outer radius of shell, in Mpc/h
+    Returns:
+        pos_shell: 3d position vectors of particles in the shell
+        vel_shell: 3d velocity vectors of particles in the shell
+    '''
+    nrep = 0
+    for i in range(100):
+        if rmax >= (box_size*(2*i+1))/2.:
+            nrep = i+1
+        else: 
+            break
+            
+    number=0
+    
+    rmin2 = rmin**2
+    rmax2 = rmax**2
+    
+    pos_shell = [None]*(nrep*2+1)**3
+    vel_shell = [None]*(nrep*2+1)**3
+    idx=0
+    
+    for i in range(-nrep, nrep+1):
+        for j in range(-nrep, nrep+1):
+            for k in range(-nrep, nrep+1):
+                p_i = pos.copy()
+                p_i[:,0] += box_size*i
+                p_i[:,1] += box_size*j
+                p_i[:,2] += box_size*k
+                
+                dist2 = np.sum(p_i**2, axis=1)
+                
+                keep = np.logical_and(dist2>=rmin2, dist2<rmax2)
+                
+                if np.count_nonzero(keep) > 0:
+                    pos_shell[idx] = p_i[keep]
+                    vel_shell[idx] = vel[keep]
+                else:
+                    pos_shell[idx] = np.zeros((0,3))
+                    vel_shell[idx] = np.zeros((0,3))
+                idx += 1
+
+    pos_shell = np.concatenate(pos_shell)
+    vel_shell = np.concatenate(vel_shell)
+    
+    return pos_shell, vel_shell
+            
+            
+    
+def halo_lightcone_unresolved(output_file, abacus_path, snapshot_redshift, cosmology, hod_param_file, 
+                              central_lookup_file, satellite_lookup_file, mass_function,
                               Nparticle, Nparticle_shell, box_size=2000., SODensity=200,
                               simulation="base", cosmo=0, ph=0, observer=(0,0,0), 
                               app_mag_faint=20.25, cosmology_orig=None, Nfiles=34):
@@ -389,6 +576,7 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
     
     Args:
         output_file:       string, containing the path of hdf5 file to save outputs
+        abacus_path:       path to the abacus mocks    
         snapshot_redshift: integer, the redshift of the snapshot
         cosmology:         object of class hodpy.cosmology.Cosmology, the simulation cosmology
         hod_param_file:    string, path to file containing HOD hyperparameter fits
@@ -396,7 +584,7 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
                                 doesn't already exist
         satellite_lookup_file: lookup file of satellite magnitudes, will be created if the file
                                 doesn't already exist
-        mf_fit_file:       path of file of mass function. Will be created if it doesn't exist
+        mass_function:     object of class hodpy.mass_function.MassFunction
         Nparticle:         file containing total number of field particles in each Abacus file.
                                 Will be created if it doesn't exist
         Nparticle_shell:   file containing total number of field particles in shells of comoving
@@ -416,13 +604,8 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
     import warnings
     warnings.filterwarnings("ignore")
     
-    # get fit to halo mass function
-    print("getting fit to halo mass function")
-    path = "/global/cfs/cdirs/desi/cosmosim/Abacus/"
     mock = "AbacusSummit_%s_c%03d_ph%03d"%(simulation, cosmo, ph)
-    input_file = path+mock+"/halos/z%.3f/halo_info/halo_info_%03d.asdf"
-    mf = get_mass_function(input_file, mf_fit_file, redshift=snapshot_redshift, 
-                           box_size=box_size, cosmology=cosmology, Nfiles=Nfiles)
+    mf = mass_function
     
     # read HOD files
     mag_faint=-10
@@ -430,13 +613,13 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
                   replace_central_lookup=True, replace_satellite_lookup=True)
     
     # get min mass
+    # rcom bins go up to 1000 Mpc/h
     if cosmology_orig is None:
         # no rescaling of cosmology
         rcom, logMmin = get_min_mass(app_mag_faint, hod, cosmology, cosmology)
     else:
         # apply cosmology rescaling
         rcom, logMmin = get_min_mass(app_mag_faint, hod, cosmology_orig, cosmology)
-    
     
     # get total number of field particles (using A particles)
     
@@ -451,20 +634,20 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
         Nshells = np.zeros((Nfiles,len(rcom)),dtype="i")
         for file_number in range(Nfiles):
             # this loop is slow. Is there a faster way to get total number of field particles in each file?
-            file_name = path+mock+"/halos/z%.3f/field_rv_A/field_rv_A_%03d.asdf"%(snapshot_redshift, file_number)
+            file_name = abacus_path+mock+"/halos/z%.3f/field_rv_A/field_rv_A_%03d.asdf"%(snapshot_redshift, file_number)
             data = read_asdf(file_name, load_pos=True, load_vel=False)
             p = data["pos"]
             for i in range(3):
                 p[:,i] -= observer[i]
             p[p>box_size/2.] -= box_size
             p[p<-box_size/2.] += box_size
-            dist = np.sum(p**2, axis=1)**0.5
             del data
-            N[file_number] = p.shape[0]
+            
+            rmax = 1000
+            N[file_number] = num_in_rmax(p, rmax, box_size)
     
             for j in range(len(rcom)):
-                keep = np.logical_and(dist>=rcom[j]-25, dist<rcom[j])
-                Nshells[file_number,j] = np.count_nonzero(keep)
+                Nshells[file_number,j] = num_in_shell(p, rmin=rcom[j]-25, rmax=rcom[j], box_size=box_size)
                 print(file_number, j, Nshells[file_number,j])
             
             gc.collect() # need to run garbage collection to release memory
@@ -476,7 +659,7 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
     
     # Now make lightcone of unresolved haloes
     for file_number in range(Nfiles):
-        file_name = path+mock+"/halos/z%.3f/field_rv_A/field_rv_A_%03d.asdf"%(snapshot_redshift, file_number)
+        file_name = abacus_path+mock+"/halos/z%.3f/field_rv_A/field_rv_A_%03d.asdf"%(snapshot_redshift, file_number)
         print(file_name)
 
         # read file
@@ -487,8 +670,6 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
             pos[:,i] -= observer[i]
         pos[pos>box_size/2.] -= box_size
         pos[pos<-box_size/2.] += box_size
-        
-        dist = np.sum(pos**2, axis=1)**0.5
         
         pos_bins = [None]*len(rcom)
         vel_bins = [None]*len(rcom)
@@ -505,8 +686,11 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
                 
             
             # cut to particles in shell
-            keep_shell = np.logical_and(dist>=rmin_bin, dist<rmax_bin)
-            N_shell = np.count_nonzero(keep_shell)
+            
+            pos_shell, vel_shell = particles_in_shell(pos, vel, box_size, 
+                                                      rmin=rmin_bin, rmax=rmax_bin)
+            N_shell = pos_shell.shape[0]
+            
             print(file_number, j, N_shell)
             
             if N_shell==0: 
@@ -515,7 +699,10 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
                 mass_bins[j] = np.zeros(0)
                 continue
                 
-            Npar =  np.sum(Nshells[:,j]) # total number of field particles in shell
+            try:
+                Npar =  np.sum(Nshells[:,j]) # total number of field particles in shell
+            except:
+                Npar =  Nshells[j]
             
             # number of randoms to generate in shell
             Nrand = mf.number_density_in_mass_bin(logMmin_bin, logMmax_bin) * vol_bin
@@ -526,15 +713,14 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
                 mass_bins[j] = np.zeros(0)
                 continue
             
-            print(Npar, Nrand, np.count_nonzero(keep_shell))
             
             # probability to keep a particle
             prob = Nrand*1.0 / Npar
             print(prob)
         
             keep = np.random.rand(N_shell) <= prob
-            pos_bins[j] = pos[keep_shell][keep]
-            vel_bins[j] = vel[keep_shell][keep]
+            pos_bins[j] = pos_shell[keep]
+            vel_bins[j] = vel_shell[keep]
         
             mass_bins[j] = 10**mf.get_random_masses(np.count_nonzero(keep), logMmin_bin, logMmax_bin) / 1e10
             
@@ -548,8 +734,6 @@ def halo_lightcone_unresolved(output_file, snapshot_redshift, cosmology, hod_par
         # shift positions back
         for i in range(3):
             pos_bins[:,i] += observer[i]
-        pos_bins[pos_bins>box_size/2.] -= box_size
-        pos_bins[pos_bins<-box_size/2.] += box_size
         
         # save halo lightcone file
         f = h5py.File(output_file%file_number, "a")
@@ -587,9 +771,8 @@ def read_galaxy_file(filename, resolved=True, mag_name="abs_mag"):
         
     
     
-    
 def make_lightcone(input_file, output_file, snapshot_redshift, mag_faint, 
-                   cosmology, box_size=2000., observer=(0,0,0),
+                   cosmology, hod, box_size=2000., observer=(0,0,0),
                    zmax=0.6, cosmology_orig=None, mag_dataset="abs_mag_rescaled"):
     """
     Create a cut-sky mock (with ra, dec, z), from the cubic box galaxy mock,
@@ -600,6 +783,7 @@ def make_lightcone(input_file, output_file, snapshot_redshift, mag_faint,
         snapshot_redshift: integer, the redshift of the snapshot
         mag_faint:         float, faint apparent magnitude limit
         cosmology:         object of class hodpy.cosmology.Cosmology, the simulation cosmology
+        hod:               object of class hodpy.hod_bgs_snapshot_abacus.HOD_BGS
         box_size:          float, simulation box size (Mpc/h)
         observer:          3D position vector of the observer, in units Mpc/h. By default
         zmax:              float, maximum redshift cut. 
@@ -625,18 +809,17 @@ def make_lightcone(input_file, output_file, snapshot_redshift, mag_faint,
     
     # find how many periodic replications we need
     rmax = cosmology.comoving_distance(zmax)
-    n=0
-    if rmax >= box_size/2.: n=1
-    if rmax >= np.sqrt(2)*box_size/2.: n=2
-    if rmax >= np.sqrt(3)*box_size/2.: n=3
+    n = replications(box_size, rmax)
     
     # loop through periodic replications
-    for i in range(-1,2):
-        for j in range(-1,2):
-            for k in range(-1,2):
+    for i in range(-5,6):
+        for j in range(-5,6):
+            for k in range(-5,6):
                 
-                n_i = abs(i) + abs(j) + abs(k)
-                if n_i > n: continue
+                rmin = 0
+                if abs(i) + abs(j) + abs(k) > 0:
+                    rmin = ((abs(i)-0.5)**2 + (abs(j)-0.5)**2 + (abs(k)-0.5)**2)**0.5 * box_size
+                if rmax<rmin: continue
                 
                 rep = (i,j,k)
                 print(rep)
@@ -644,7 +827,7 @@ def make_lightcone(input_file, output_file, snapshot_redshift, mag_faint,
                 ra, dec, zcos, zobs, magnitude_new, app_mag, col_new, col_obs, index = \
                         cut_sky(pos, vel, abs_mag, is_cen, cosmology, Lbox=box_size, 
                             zsnap=snapshot_redshift, kcorr_r=kcorr_r, kcorr_g=kcorr_g, 
-                            replication=rep, 
+                            hod=hod, replication=rep, 
                             zcut=zmax, mag_cut=mag_faint, cosmology_orig=cosmology_orig)
 
                 print("NGAL:", np.count_nonzero(ra))
@@ -671,7 +854,7 @@ def make_lightcone(input_file, output_file, snapshot_redshift, mag_faint,
         
     
 def make_lightcone_lowz(resolved_file, unresolved_file, output_file, 
-                        snapshot_redshift, mag_faint, cosmology, box_size=2000., 
+                        snapshot_redshift, mag_faint, cosmology, hod, box_size=2000., 
                         observer=(0,0,0), zmax=0.15, cosmology_orig=None, 
                         mag_dataset="abs_mag_rescaled"):
     """
@@ -684,6 +867,7 @@ def make_lightcone_lowz(resolved_file, unresolved_file, output_file,
         snapshot_redshift: integer, the redshift of the snapshot
         mag_faint:         float, faint apparent magnitude limit
         cosmology:         object of class hodpy.cosmology.Cosmology, the simulation cosmology
+        hod:               object of class hodpy.hod_bgs_snapshot_abacus.HOD_BGS
         box_size:          float, simulation box size (Mpc/h)
         observer:          3D position vector of the observer, in units Mpc/h. By default
         zmax:              float, maximum redshift cut. 
@@ -713,9 +897,7 @@ def make_lightcone_lowz(resolved_file, unresolved_file, output_file,
     # shift coordinates so observer at origin
     for i in range(3):
         pos[:,i] -= observer[i]
-    pos[pos >  box_size/2.] -= box_size
-    pos[pos < -box_size/2.] += box_size
-    
+
     kcorr_r = GAMA_KCorrection(cosmology, k_corr_file="lookup/k_corr_rband_z01.dat", 
                                cubic_interpolation=True)
     kcorr_g = GAMA_KCorrection(cosmology, k_corr_file="lookup/k_corr_gband_z01.dat", 
@@ -725,7 +907,7 @@ def make_lightcone_lowz(resolved_file, unresolved_file, output_file,
     ra, dec, zcos, zobs, magnitude_new, app_mag, col_new, col_obs, index = \
             cut_sky(pos, vel, abs_mag, is_cen, cosmology, Lbox=box_size, 
                     zsnap=snapshot_redshift, kcorr_r=kcorr_r, kcorr_g=kcorr_g, 
-                    replication=(0,0,0), zcut=zmax, mag_cut=mag_faint, 
+                    hod=hod, replication=(0,0,0), zcut=zmax, mag_cut=mag_faint, 
                     cosmology_orig=cosmology_orig)
 
     print("NGAL:", np.count_nonzero(ra))
@@ -744,8 +926,7 @@ def make_lightcone_lowz(resolved_file, unresolved_file, output_file,
     f.create_dataset("halo_mass", data=10**log_mass[index], compression="gzip")
     f.close()
 
-    
-    
+        
     
 def rescale_snapshot_magnitudes(filename, box_size, zsnap, cosmo_orig, cosmo_new, Nfiles=34,
                                mag_dataset="abs_mag_rescaled"):
@@ -795,12 +976,13 @@ def rescale_snapshot_magnitudes(filename, box_size, zsnap, cosmo_orig, cosmo_new
         
 def rescale_lightcone_magnitudes(filename_resolved, filename_unresolved, 
                                  zmax, zsnap, cosmo_orig, cosmo_new, Nfiles=34,   
-                                 mag_dataset="abs_mag_rescaled"):
+                                 mag_dataset="abs_mag_rescaled", observer=(0,0,0)):
     """
-    Rescale the magnitudes in the cubic box mock to match target LF exactly
+    Rescale the magnitudes in the lightcone mock to match target LF exactly
     Args:
-        filename:     string, containing the path of the input galaxy mock
-        box_size:     float, simulation box size (Mpc/h)
+        filename_resolved:     string, containing the path of the input resolved galaxy lightcone
+        filename_unresolved:     string, containing the path of the input unresolved galaxy lightcone
+        zmax:
         zsnap:        integer, the redshift of the snapshot
         cosmo_orig:   object of class hodpy.cosmology.Cosmology, the cosmology of the 
                             original simulation
@@ -809,6 +991,7 @@ def rescale_lightcone_magnitudes(filename_resolved, filename_unresolved,
         Nfiles:       Number of AbacusSummit files for this snapshot. Default is 34
         mag_dataset:  string, name of the dataset of absolute magnitudes to read from
                                 the input mock file
+        observer:     observer position, default (0,0,0)
     """
     # rescale the magnitudes of the snapshot to match target LF exactly
     
@@ -827,7 +1010,10 @@ def rescale_lightcone_magnitudes(filename_resolved, filename_unresolved,
         if exists(filename_resolved%i):
             f = h5py.File(filename_resolved%i,"r")
             abs_mag[i] = f["abs_mag"][...]
-            pos[i] = f["pos"][...]
+            p = f["pos"][...]
+            for j in range(3):
+                p[:,j] = p[:,j] - observer[j]
+            pos[i] = p 
             filenum[i] = np.ones(len(abs_mag[i]), dtype="i") * i
             is_res[i] = np.ones(len(abs_mag[i]), dtype="bool")
             f.close()
@@ -841,7 +1027,10 @@ def rescale_lightcone_magnitudes(filename_resolved, filename_unresolved,
         if exists(filename_unresolved%i):
             f = h5py.File(filename_unresolved%i,"r")
             abs_mag[i+Nfiles] = f["abs_mag"][...]
-            pos[i+Nfiles] = f["pos"][...]
+            p = f["pos"][...]
+            for j in range(3):
+                p[:,j] = p[:,j] - observer[j]
+            pos[i+Nfiles] = p
             filenum[i+Nfiles] = np.ones(len(abs_mag[i+Nfiles]), dtype="i") * i
             is_res[i+Nfiles] = np.zeros(len(abs_mag[i+Nfiles]), dtype="bool")
             f.close()
@@ -891,24 +1080,26 @@ def rescale_lightcone_magnitudes(filename_resolved, filename_unresolved,
     
     
     
-    
-def read_dataset_cut_sky_rep(filename, dataset, n=2):
+def read_dataset_cut_sky_rep(filename, dataset):
     """
     Read a dataset from the cut-sky mock files, with periodic replictions
     """
-    length=[1,7,19,27][n]
+
+    length = 1331
     data = [None]*length
     
     f = h5py.File(filename,"r")
     
     idx=0
-    for i in range(-1,2):
-        for j in range(-1,2):
-            for k in range(-1,2):
+    for i in range(-5,6):
+        for j in range(-5,6):
+            for k in range(-5,6):
                 
-                if abs(i)+abs(j)+abs(k) > n: continue
-                
-                data[idx] = f["%i%i%i/%s"%(i,j,k,dataset)][...]
+                try:
+                    data[idx] = f["%i%i%i/%s"%(i,j,k,dataset)][...]
+                except:
+                    data[idx] = np.zeros(0)
+                    
                 idx+=1
     f.close()
     
@@ -929,3 +1120,288 @@ def read_dataset_cut_sky(filename, dataset, dtype="f"):
         data = np.zeros(0,dtype=dtype)
         
     return data
+
+
+
+def merge_galaxy_lightcone_res(filename):
+    '''
+    Merge the periodic replications for the low redshift resolved lightcone
+    '''
+    
+    Nfiles = 27
+    
+    abs_mag = [None]*Nfiles
+    cen_ind = [None]*Nfiles
+    col     = [None]*Nfiles
+    halo_ind = [None]*Nfiles
+    halo_mass = [None]*Nfiles
+    is_cen  = [None]*Nfiles
+    pos     = [None]*Nfiles
+    vel     = [None]*Nfiles
+    zcos    = [None]*Nfiles
+    
+    idx=0
+    for i in range(-1,2,1):
+        for j in range(-1,2,1):
+            for k in range(-1,2,1):
+
+                try:
+                    f = h5py.File(filename+"%i%i%i"%(i,j,k),"r")
+                    abs_mag[idx]   = f["abs_mag"][...]
+                    cen_ind[idx]   = f["cen_ind"][...]
+                    col[idx]       = f["col"][...]
+                    halo_ind[idx] = f["halo_ind"][...]
+                    halo_mass[idx] = f["halo_mass"][...]
+                    is_cen[idx]    = f["is_cen"][...]
+                    pos[idx]       = f["pos"][...]
+                    vel[idx]       = f["vel"][...]
+                    zcos[idx]       = f["zcos"][...]
+                    f.close()
+                    
+                except:
+                    abs_mag[idx]   = np.zeros(0, dtype='f')
+                    cen_ind[idx]   = np.zeros(0, dtype='i')
+                    col[idx]       = np.zeros(0, dtype='f')
+                    halo_ind[idx]  = np.zeros(0, dtype='i')
+                    halo_mass[idx] = np.zeros(0, dtype='f')
+                    is_cen[idx]    = np.zeros(0, dtype='bool')
+                    pos[idx]       = np.zeros((0,3), dtype='f')
+                    vel[idx]       = np.zeros((0,3), dtype='f')
+                    zcos[idx]      = np.zeros(0, dtype='f')
+                
+                idx += 1
+
+    abs_mag = np.concatenate(abs_mag)
+    cen_ind = np.concatenate(cen_ind)
+    col = np.concatenate(col)
+    halo_ind = np.concatenate(halo_ind)
+    halo_mass = np.concatenate(halo_mass)
+    is_cen = np.concatenate(is_cen)
+    pos = np.concatenate(pos)
+    vel = np.concatenate(vel)
+    zcos = np.concatenate(zcos)
+    
+    
+    f = h5py.File(filename, "a")
+    f.create_dataset("abs_mag", data=abs_mag, compression="gzip")
+    f.create_dataset("cen_ind", data=cen_ind, compression="gzip")
+    f.create_dataset("col", data=col, compression="gzip")
+    f.create_dataset("halo_ind", data=halo_ind, compression="gzip")
+    f.create_dataset("halo_mass", data=halo_mass, compression="gzip")
+    f.create_dataset("is_cen", data=is_cen, compression="gzip")
+    f.create_dataset("pos", data=pos, compression="gzip")
+    f.create_dataset("vel", data=vel, compression="gzip")
+    f.create_dataset("zcos", data=zcos, compression="gzip")
+    f.close()
+
+
+def merge_box(output_path, galaxy_snapshot_file, output_path_final, galaxy_snapshot_final,
+             Nfiles, fmt="fits", offset=0):
+    '''
+    Merge the cubic box files
+    '''
+    abs_mag   = [None]*Nfiles
+    col       = [None]*Nfiles
+    halo_mass = [None]*Nfiles
+    is_cen    = [None]*Nfiles
+    pos       = [None]*Nfiles
+    vel       = [None]*Nfiles
+
+    for i in range(Nfiles):
+        print(i)
+        f = h5py.File(output_path+galaxy_snapshot_file%i,"r")
+        abs_mag[i]   = f["abs_mag"][...]
+        col[i]       = f["col"][...]
+        halo_mass[i] = f["halo_mass"][...]
+        is_cen[i]    = f["is_cen"][...]
+        pos[i]       = f["pos"][...] + offset
+        vel[i]       = f["vel"][...]
+        f.close()
+
+    abs_mag = np.concatenate(abs_mag)
+    col = np.concatenate(col)
+    halo_mass = np.concatenate(halo_mass)
+    is_cen = np.concatenate(is_cen)
+    pos = np.concatenate(pos)
+    vel = np.concatenate(vel)
+
+    gtype = np.zeros(len(is_cen), dtype="i")
+    gtype[is_cen==False] = 1
+
+    if fmt=="hdf5":
+        f = h5py.File(output_path_final+galaxy_snapshot_final,"a")
+        f.create_dataset("Data/abs_mag", data=abs_mag, compression="gzip")
+        f.create_dataset("Data/g_r", data=col, compression="gzip")
+        f.create_dataset("Data/halo_mass", data=halo_mass/1e10, compression="gzip")
+        f.create_dataset("Data/galaxy_type", data=gtype, compression="gzip")
+        f.create_dataset("Data/pos", data=pos, compression="gzip")
+        f.create_dataset("Data/vel", data=vel, compression="gzip")
+        f.close()
+        
+    elif fmt=="fits":
+        
+        N = len(abs_mag)
+        
+        data_fits = np.zeros(N, dtype=[('R_MAG_ABS', 'f4'), ('G_R_REST', 'f4'), 
+                                       ('HALO_MASS', 'f4'), ('cen', 'i4'), 
+                               ('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
+                               ('vx', 'f4'), ('vy', 'f4'), ('vz', 'f4')])
+
+        data_fits['R_MAG_ABS']   = abs_mag
+        del abs_mag
+        data_fits['G_R_REST']    = col
+        del col
+        data_fits['HALO_MASS']   = halo_mass/1e10
+        del halo_mass
+        data_fits['cen']         = 1 - gtype
+        del gtype
+        data_fits['x']           = pos[:,0]
+        data_fits['y']           = pos[:,1]
+        data_fits['z']           = pos[:,2]
+        del pos
+        data_fits['vx']           = vel[:,0]
+        data_fits['vy']           = vel[:,1]
+        data_fits['vz']           = vel[:,2]
+        del vel
+        
+        fits = fitsio.FITS(output_path_final+galaxy_snapshot_final, "rw")
+        fits.write(data_fits)
+        fits.close()
+
+
+
+
+def merge_lightcone(output_path, galaxy_cutsky, galaxy_cutsky_low, 
+                    output_path_final, galaxy_cutsky_final, Nfiles, n_rep, 
+                    zmax_low, app_mag_faint, fmt='fits'):
+
+    '''
+    Merge the low and high redshift lightcones
+    '''
+    
+    abs_mag   = [None]*(Nfiles*2)
+    app_mag   = [None]*(Nfiles*2)
+    col       = [None]*(Nfiles*2)
+    col_obs   = [None]*(Nfiles*2)
+    dec       = [None]*(Nfiles*2)
+    halo_mass = [None]*(Nfiles*2)
+    is_cen    = [None]*(Nfiles*2)
+    is_res    = [None]*(Nfiles*2)
+    ra        = [None]*(Nfiles*2)
+    zcos      = [None]*(Nfiles*2)
+    zobs      = [None]*(Nfiles*2)
+
+    for file_number in range(Nfiles):
+        print(file_number)
+        filename1 = output_path+galaxy_cutsky%file_number
+        filename2 = output_path+galaxy_cutsky_low%file_number
+
+        zobs[file_number] = read_dataset_cut_sky_rep(filename1, "zobs", n=n_rep)
+        zobs[file_number+Nfiles] = read_dataset_cut_sky(filename2, "zobs")
+
+        app_mag[file_number] = read_dataset_cut_sky_rep(filename1, "app_mag", n=n_rep)
+        app_mag[file_number+Nfiles] = read_dataset_cut_sky(filename2, "app_mag")
+
+        keep1 = np.logical_and(zobs[file_number] > zmax_low, app_mag[file_number] <=app_mag_faint)
+        keep2 = np.logical_and(zobs[file_number+Nfiles] <= zmax_low, app_mag[file_number+Nfiles]<=app_mag_faint)
+
+        zobs[file_number]   = zobs[file_number][keep1]
+        zobs[file_number+Nfiles] = zobs[file_number+Nfiles][keep2]
+
+        app_mag[file_number]   = app_mag[file_number][keep1]
+        app_mag[file_number+Nfiles] = app_mag[file_number+Nfiles][keep2]
+
+        abs_mag[file_number] = read_dataset_cut_sky_rep(filename1, "abs_mag", n=n_rep)[keep1]
+        abs_mag[file_number+Nfiles] = read_dataset_cut_sky(filename2, "abs_mag")[keep2]
+
+        col[file_number] = read_dataset_cut_sky_rep(filename1, "col", n=n_rep)[keep1]
+        col[file_number+Nfiles] = read_dataset_cut_sky(filename2, "col")[keep2]
+
+        col_obs[file_number] = read_dataset_cut_sky_rep(filename1, "col_obs", n=n_rep)[keep1]
+        col_obs[file_number+Nfiles] = read_dataset_cut_sky(filename2, "col_obs")[keep2]
+
+        dec[file_number] = read_dataset_cut_sky_rep(filename1, "dec", n=n_rep)[keep1]
+        dec[file_number+Nfiles] = read_dataset_cut_sky(filename2, "dec")[keep2]
+
+        halo_mass[file_number] = read_dataset_cut_sky_rep(filename1, "halo_mass", n=n_rep)[keep1]
+        halo_mass[file_number+Nfiles] = read_dataset_cut_sky(filename2, "halo_mass")[keep2]
+
+        is_cen[file_number] = read_dataset_cut_sky_rep(filename1, "is_cen", n=n_rep)[keep1]
+        is_cen[file_number+Nfiles] = read_dataset_cut_sky(filename2, "is_cen", dtype="bool")[keep2]
+
+        is_res[file_number] = read_dataset_cut_sky_rep(filename1, "is_res", n=n_rep)[keep1]
+        is_res[file_number+Nfiles] = read_dataset_cut_sky(filename2, "is_res", dtype="bool")[keep2]
+
+        ra[file_number] = read_dataset_cut_sky_rep(filename1, "ra", n=n_rep)[keep1]
+        ra[file_number+Nfiles] = read_dataset_cut_sky(filename2, "ra")[keep2]
+
+        zcos[file_number] = read_dataset_cut_sky_rep(filename1, "zcos", n=n_rep)[keep1]
+        zcos[file_number+Nfiles] = read_dataset_cut_sky(filename2, "zcos")[keep2]
+
+
+    abs_mag   = np.concatenate(abs_mag)
+    app_mag   = np.concatenate(app_mag)
+    col       = np.concatenate(col)
+    col_obs   = np.concatenate(col_obs)
+    dec       = np.concatenate(dec)
+    halo_mass = np.concatenate(halo_mass)
+    is_cen    = np.concatenate(is_cen)
+    is_res    = np.concatenate(is_res)
+    ra        = np.concatenate(ra)
+    zcos      = np.concatenate(zcos)
+    zobs      = np.concatenate(zobs)
+
+    gtype = np.zeros(len(is_cen), dtype="i")
+    gtype[is_cen==False] = 1 # set to 1 if satellite
+    gtype[is_res==False] += 2 # add 2 to unresolved
+
+    cen = np.array(is_cen, dtype="i")
+    res = np.array(is_res, dtype="i")
+    
+    if fmt=="hdf5":
+        f = h5py.File(output_path_final+galaxy_cutsky_final,"a")
+        f.create_dataset("Data/abs_mag",   data=abs_mag, compression="gzip")
+        f.create_dataset("Data/app_mag",   data=app_mag, compression="gzip")
+        f.create_dataset("Data/g_r",       data=col,     compression="gzip")
+        f.create_dataset("Data/g_r_obs",   data=col_obs, compression="gzip")
+        f.create_dataset("Data/dec",       data=dec,     compression="gzip")
+        f.create_dataset("Data/halo_mass", data=halo_mass/1e10, compression="gzip")
+        f.create_dataset("Data/galaxy_type", data=gtype, compression="gzip")
+        f.create_dataset("Data/ra", data=ra, compression="gzip")
+        f.create_dataset("Data/z_cos", data=zcos, compression="gzip")
+        f.create_dataset("Data/z_obs", data=zobs, compression="gzip")
+        f.close()
+
+    elif fmt=="fits":
+
+        N = len(ra)
+
+        hdict = {'SV3_AREA': 207.5, 'Y5_AREA':14850.4}
+
+        data_fits = np.zeros(N, dtype=[('R_MAG_APP', 'f4'), ('R_MAG_ABS', 'f4'),
+                                   ('G_R_REST', 'f4'), ('G_R_OBS', 'f4'),
+                                   ('DEC', 'f4'), ('HALO_MASS', 'f4'),
+                                   ('CEN', 'i4'), ('RES', 'i4'), ('RA', 'f4'),  
+                                   ('Z_COSMO', 'f4'), ('Z', 'f4'),
+                                   ('STATUS', 'i4')])
+
+        data_fits['R_MAG_APP']   = app_mag
+        data_fits['R_MAG_ABS']   = abs_mag
+        data_fits['G_R_REST']    = col
+        data_fits['G_R_OBS']     = col_obs
+        data_fits['DEC']         = dec
+        data_fits['HALO_MASS']   = halo_mass/1e10
+        #data_fits['GALAXY_TYPE'] = gtype
+        data_fits['CEN']         = cen
+        data_fits['RES']         = res
+        data_fits['RA']          = ra
+        data_fits['Z_COSMO']     = zcos
+        data_fits['Z']           = zobs
+
+        fits = fitsio.FITS(output_path_final+galaxy_cutsky_final, "rw")
+        fits.write(data_fits, header=hdict)
+        fits.close()
+
+
+
+
