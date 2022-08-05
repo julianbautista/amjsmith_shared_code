@@ -170,7 +170,12 @@ class CosmologyAbacus(Cosmology):
     def __init__(self, cosmo):
         
         filename = lookup.path+"/Cosmologies/CLASS_c%03d.ini"%cosmo
-        
+
+        # when reading the file, it complains that it didn't read w0_fld, wa_fld
+        # cloning it seems to fix the issue, and set w0_fld, wa_fld correctly
         cosmo_nbody = nbodykit.cosmology.cosmology.Cosmology.from_file(filename)
-        
+        cosmo_nbody = cosmo_nbody.clone()
+    
         super().__init__(cosmo_nbody)
+
+        
