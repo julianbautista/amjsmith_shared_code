@@ -10,7 +10,7 @@ from hodpy import lookup
 
 
 def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr_r, kcorr_g,
-            replication=(0,0,0), zcut=None, mag_cut=None, cosmology_orig=None):
+            hod, replication=(0,0,0), zcut=None, mag_cut=None, cosmology_orig=None):
     """
     Creates a cut sky mock by converting the cartesian coordiantes of a cubic box mock to ra, dec, z.
     Magnitudes and colours are evolved with redshift
@@ -87,7 +87,7 @@ def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr
     colour_new = np.zeros(len(magnitude_new))
     
     #col = Colour()
-    col = ColourNew()
+    col = ColourNew(hod=hod)
     
     # randomly assign colours to centrals and satellites
     colour_new[is_cen] = col.get_central_colour(magnitude_new[is_cen], zobs[is_cen])
@@ -109,3 +109,4 @@ def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr
         
     
     return ra, dec, zcos, zobs, magnitude_new, app_mag, colour_new, colour_obs, index
+
