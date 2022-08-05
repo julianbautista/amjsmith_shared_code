@@ -1,17 +1,19 @@
 #! /usr/bin/env python
 import numpy as np
 from scipy.special import erfc
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, interp1d
 from hodpy import lookup
 
 
 class ColourNew(object):
     
-    def __init__(self, colour_fits=lookup.colour_fits):
+    def __init__(self, colour_fits=lookup.colour_fits, hod=None):
         """
         Class containing methods for randomly assigning galaxies a g-r colour
         using updated colour distributions
         """
+        
+        self.hod = hod
         
         self.redshift_bin, self.redshift_median, \
                 self.functions, self.parameters = self.read_fits(colour_fits)
@@ -25,18 +27,39 @@ class ColourNew(object):
         self.__red_rms_interpolator = self.__get_interpolator(3)
         self.__fraction_blue_interpolator = self.__get_interpolator(4)
         
+        self.__central_fraction_interpolator = self.__initialize_central_fraction_interpolator(z=0.2)
             
             
-    def __initialize_central_fraction_interpolator(self, fraction_central_file):
+    def __initialize_central_fraction_interpolator(self, z=0.2):
         
-        array = np.loadtxt(fraction_central_file)
+        magnitudes = np.arange(-23,-10,0.1)
+        fcen = np.zeros(len(magnitudes))
 
-        magnitudes = array[1:,0]
-        redshifts = array[0,1:]
-        fraction_central = array[1:,1:]
+        for i in range(len(magnitudes)):
+            magnitude = np.array([magnitudes[i],])
+            redshift = np.array([z,])
+            logMmin = np.log10(self.hod.Mmin(magnitude))
+            logM1 = np.log10(self.hod.M1(magnitude))
+            logM0 = np.log10(self.hod.M0(magnitude))
+            sigmalogM = self.hod.sigma_logM(magnitude)
+            alpha = self.hod.alpha(magnitude)
 
-        return RegularGridInterpolator((magnitudes, redshifts),
-                        fraction_central, bounds_error=False, fill_value=None)
+            n_all = self.hod.get_n_HOD(magnitude, redshift, logMmin, logM1, logM0, sigmalogM, alpha,
+                            Mmin=10, Mmax=16, galaxies="all")
+
+            n_cen = self.hod.get_n_HOD(magnitude, redshift, logMmin, logM1, logM0, sigmalogM, alpha,
+                            Mmin=10, Mmax=16, galaxies="cen")
+
+            fcen[i] = n_cen/n_all
+            
+        magnitudes2 = np.arange(-28,10,0.1)
+        fcen2 = np.zeros(len(magnitudes2))
+        fcen2[50:180] = fcen
+        fcen2[:50] = fcen[0]
+        fcen2[180:] = fcen[-1]
+    
+        return interp1d(magnitudes2, fcen2, kind='cubic')
+
         
         
     def read_fits(self, colour_fits):
@@ -132,8 +155,11 @@ class ColourNew(object):
         """
         
         # for Abacus
-        nsat_ncen = 0.509 * (2 - erfc(0.4467*(magnitude+20.26)))
-        return 1 / (1 + nsat_ncen)
+        # nsat_ncen = 0.509 * (2 - erfc(0.4467*(magnitude+20.26)))
+        # return 1 / (1 + nsat_ncen)
+        
+        return self.__central_fraction_interpolator(magnitude)
+        
         
         
     def satellite_mean(self, magnitude, redshift):
