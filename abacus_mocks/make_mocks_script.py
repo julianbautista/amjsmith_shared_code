@@ -263,7 +263,7 @@ print("MERGE CUBIC BOX FILES INTO FINAL MOCK")
 # use original (not rescaled) magnitudes
 
 merge_box(output_path, galaxy_snapshot_file, output_path_final,
-          galaxy_snapshot_final_fits, fmt="fits", Nfiles=Nfiles, offset=Lbox/2.)
+          galaxy_snapshot_final, fmt="fits", Nfiles=Nfiles, offset=Lbox/2.)
 
 
 
@@ -274,7 +274,6 @@ print("MERGE CUT-SKY FILES INTO FINAL MOCK")
 # join files together 
 
 merge_lightcone(output_path, galaxy_cutsky, galaxy_cutsky_low, 
-                output_path_final, galaxy_cutsky_final_fits, fmt='fits',
+                output_path_final, galaxy_cutsky_final, fmt='fits',
                 Nfiles=Nfiles, zmax_low=zmax_low, app_mag_faint=app_mag_faint,
                 n_rep=n_rep)
-
