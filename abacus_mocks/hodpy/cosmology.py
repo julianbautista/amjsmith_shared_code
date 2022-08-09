@@ -7,7 +7,6 @@ import nbodykit.cosmology.cosmology
 
 from hodpy import lookup
 
-
 class Cosmology(object):
     """
     Class containing useful cosmology methods. Assumes flat LCDM Universe.
@@ -130,7 +129,54 @@ class Cosmology(object):
         return 4*np.pi*(self.c/H100) * self.comoving_distance(z)**2 / \
                                 self.cosmo_nbodykit.efunc(z)
     
+    def get_xi_scaling_factor(self, cosmo_new, r_bins, pimax=120,
+                           correlation_function="xi", scale=8, 
+                           power_spectrum="zel", z=0.2):
+        """
+        Returns the cosmology rescaling factors for the correlation
+        function
 
+        Args:
+            cosmo_new: new cosmology to rescale to
+            r_bins:    array of r bins that xi is evaluated at (Mpc/h)
+            pimax:     maximum value of pi in integral, for wp only
+            correlation_function: "xi" or "wp"
+            scale:     scale below which the scaling factor is set to 1
+            power_spectrum: "lin", "nl" or "zel"
+            z:         redshift
+        """
+
+        from hodpy.power_spectrum import PowerSpectrum
+
+        Pk1 = PowerSpectrum(self)
+        Pk2 = PowerSpectrum(cosmo_new)
+        
+        if correlation_function=="xi":
+            xi_c1_8, xi_c1 = Pk1.get_xi(r_bins, scale=scale,
+                                        power_spectrum=power_spectrum, z=z)
+            xi_c2_8, xi_c2 = Pk2.get_xi(r_bins, scale=scale,
+                                        power_spectrum=power_spectrum, z=z)
+            scaling_factor = xi_c2/xi_c1 * (xi_c1_8/xi_c2_8)
+        elif correlation_function=="wp":
+            wp_c1_8, wp_c1 = Pk1.get_wp(r_bins, pimax=pimax, scale=scale,
+                                        power_spectrum=power_spectrum, z=z)
+            wp_c2_8, wp_c2 = Pk2.get_wp(r_bins, pimax=pimax,scale=scale,
+                                        power_spectrum=power_spectrum, z=z)
+            scaling_factor = wp_c2/wp_c1 * (wp_c1_8/wp_c2_8)
+        else: 
+            raise ValueError("Invalid correlation function", correlation_function)
+
+        print(xi_c2)
+        print(xi_c1)
+        print(xi_c1_8)
+        print(xi_c2_8)
+        
+        # keep scaling_factor fixed to 1 below scale
+        scaling_factor[r_bins<scale] = 1.0
+    
+        return scaling_factor
+
+    
 class CosmologyMXXL(Cosmology):
     
     def __init__(self):
@@ -177,5 +223,3 @@ class CosmologyAbacus(Cosmology):
         cosmo_nbody = cosmo_nbody.clone()
     
         super().__init__(cosmo_nbody)
-
-        

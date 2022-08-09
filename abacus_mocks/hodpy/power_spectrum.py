@@ -19,7 +19,8 @@ class PowerSpectrum(object):
     def __init__(self, cosmo):
         
         self.cosmo = cosmo   # this is my cosmology class
-        self.__p_lin = nbodykit_cosmology.LinearPower(cosmo.cosmo_nbodykit, redshift=0, transfer="CLASS")
+        self.__p_lin = nbodykit_cosmology.LinearPower(cosmo.cosmo_nbodykit,
+                                                redshift=0, transfer="CLASS")
         
         self.__k = 10**np.arange(-6,6,0.01)
         self.__P = self.P_lin(self.__k, z=0)
@@ -190,4 +191,69 @@ class PowerSpectrum(object):
         return 1.686 / self.cosmo.growth_factor(z)
 
     
+    def get_xi(self, r_bins, scale=8, power_spectrum="zel", z=0.2):
+        """
+        Returns the correlation function xi(r)
     
+        Args:
+            cosmo: nbodykit cosmology class
+            r_bins: array of bins in r to calculate xi(r)
+            scale: scale for normalisation (default 8 Mpc/h)
+            power_spectrum: can be "lin", "nl" or "zel" (default is "zel")
+            z: redshift
+
+        Returns:
+            xi at the normalisation scale
+            array of xi evaluated in r_bins
+        """
+
+        # get power spectra at z=0, then evolve xi to the right redshift after
+        
+        if power_spectrum=="lin":
+            # linear power spectrum
+            Pk = nbodykit_cosmology.LinearPower(self.cosmo.cosmo_nbodykit,
+                                        redshift=0, transfer='CLASS')
+        elif power_spectrum=="nl":
+            # non-linear power spectrum
+            Pk = nbodykit_cosmology.HalofitPower(self.cosmo.cosmo_nbodykit,
+                                                 redshift=0)
+        elif power_spectrum=="zel":
+            # Zel'dovich power spectrum 
+            Pk = nbodykit_cosmology.ZeldovichPower(self.cosmo.cosmo_nbodykit,
+                                                   redshift=0)
+        else:
+            raise ValueError("Invalid power spectrum", power_spectrum)
+    
+        xi = nbodykit_cosmology.CorrelationFunction(Pk)
+
+        xi_scale = xi(scale)*self.cosmo.growth_factor(z)**2
+        xi_bins = xi(r_bins)*self.cosmo.growth_factor(z)**2
+        
+        return xi_scale, xi_bins
+
+    
+    def get_wp(self, rp_bins, pimax=120, scale=8, power_spectrum="zel", z=0.2):
+        """
+        Returns the projected correlation function wp(rp)
+    
+        Args:
+            cosmo: nbodykit cosmology class
+            rp_bins: array of bins in rp to calculate wp(rp)
+            pimax: maximum value of pi in integral
+            scale: scale for normalisation (default 8 Mpc/h)
+            power_spectrum: can be "lin", "nl" or "zel" (default is "zel")
+            z: redshift
+
+        Returns:
+            wp at the normalisation scale
+            array of wp evaluated in rp_bins
+        """
+        pi_bins = np.arange(0,pimax+0.01,0.1)
+        rp_grid, pi_grid = np.meshgrid(np.append(rp_bins,scale), pi_bins)
+        r_bins = (rp_grid**2 + pi_grid**2)**0.5
+    
+        xi0, xi = self.get_xi(r_bins=r_bins, scale=scale,
+                              power_spectrum=power_spectrum, z=z)
+        wp = np.sum(xi,axis=0)
+    
+        return wp[-1], wp[:-1]
