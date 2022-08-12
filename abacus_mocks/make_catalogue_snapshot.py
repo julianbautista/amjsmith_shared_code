@@ -716,13 +716,16 @@ def halo_lightcone_unresolved(output_file, abacus_path, snapshot_redshift, cosmo
             
             # probability to keep a particle
             prob = Nrand*1.0 / Npar
-            print(prob)
-        
+            
             keep = np.random.rand(N_shell) <= prob
             pos_bins[j] = pos_shell[keep]
             vel_bins[j] = vel_shell[keep]
-        
-            mass_bins[j] = 10**mf.get_random_masses(np.count_nonzero(keep), logMmin_bin, logMmax_bin) / 1e10
+
+            # generate random masses if number of particles > 0
+            if np.count_nonzero(keep)>0:
+                mass_bins[j] = 10**mf.get_random_masses(np.count_nonzero(keep), logMmin_bin, logMmax_bin) / 1e10
+            else:
+                mass_bins[j] = np.zeros(0)
             
         del data
         gc.collect() # need to run garbage collection to release memory
