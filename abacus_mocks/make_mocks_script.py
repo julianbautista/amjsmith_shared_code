@@ -275,5 +275,4 @@ print("MERGE CUT-SKY FILES INTO FINAL MOCK")
 
 merge_lightcone(output_path, galaxy_cutsky, galaxy_cutsky_low, 
                 output_path_final, galaxy_cutsky_final, fmt='fits',
-                Nfiles=Nfiles, zmax_low=zmax_low, app_mag_faint=app_mag_faint,
-                n_rep=n_rep)
+                Nfiles=Nfiles, zmax_low=zmax_low, app_mag_faint=app_mag_faint)

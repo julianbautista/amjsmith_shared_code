@@ -1275,7 +1275,7 @@ def merge_box(output_path, galaxy_snapshot_file, output_path_final, galaxy_snaps
 
 
 def merge_lightcone(output_path, galaxy_cutsky, galaxy_cutsky_low, 
-                    output_path_final, galaxy_cutsky_final, Nfiles, n_rep, 
+                    output_path_final, galaxy_cutsky_final, Nfiles, 
                     zmax_low, app_mag_faint, fmt='fits'):
 
     '''
@@ -1299,10 +1299,10 @@ def merge_lightcone(output_path, galaxy_cutsky, galaxy_cutsky_low,
         filename1 = output_path+galaxy_cutsky%file_number
         filename2 = output_path+galaxy_cutsky_low%file_number
 
-        zobs[file_number] = read_dataset_cut_sky_rep(filename1, "zobs", n=n_rep)
+        zobs[file_number] = read_dataset_cut_sky_rep(filename1, "zobs")
         zobs[file_number+Nfiles] = read_dataset_cut_sky(filename2, "zobs")
 
-        app_mag[file_number] = read_dataset_cut_sky_rep(filename1, "app_mag", n=n_rep)
+        app_mag[file_number] = read_dataset_cut_sky_rep(filename1, "app_mag")
         app_mag[file_number+Nfiles] = read_dataset_cut_sky(filename2, "app_mag")
 
         keep1 = np.logical_and(zobs[file_number] > zmax_low, app_mag[file_number] <=app_mag_faint)
@@ -1314,31 +1314,31 @@ def merge_lightcone(output_path, galaxy_cutsky, galaxy_cutsky_low,
         app_mag[file_number]   = app_mag[file_number][keep1]
         app_mag[file_number+Nfiles] = app_mag[file_number+Nfiles][keep2]
 
-        abs_mag[file_number] = read_dataset_cut_sky_rep(filename1, "abs_mag", n=n_rep)[keep1]
+        abs_mag[file_number] = read_dataset_cut_sky_rep(filename1, "abs_mag")[keep1]
         abs_mag[file_number+Nfiles] = read_dataset_cut_sky(filename2, "abs_mag")[keep2]
 
-        col[file_number] = read_dataset_cut_sky_rep(filename1, "col", n=n_rep)[keep1]
+        col[file_number] = read_dataset_cut_sky_rep(filename1, "col")[keep1]
         col[file_number+Nfiles] = read_dataset_cut_sky(filename2, "col")[keep2]
 
-        col_obs[file_number] = read_dataset_cut_sky_rep(filename1, "col_obs", n=n_rep)[keep1]
+        col_obs[file_number] = read_dataset_cut_sky_rep(filename1, "col_obs")[keep1]
         col_obs[file_number+Nfiles] = read_dataset_cut_sky(filename2, "col_obs")[keep2]
 
-        dec[file_number] = read_dataset_cut_sky_rep(filename1, "dec", n=n_rep)[keep1]
+        dec[file_number] = read_dataset_cut_sky_rep(filename1, "dec")[keep1]
         dec[file_number+Nfiles] = read_dataset_cut_sky(filename2, "dec")[keep2]
 
-        halo_mass[file_number] = read_dataset_cut_sky_rep(filename1, "halo_mass", n=n_rep)[keep1]
+        halo_mass[file_number] = read_dataset_cut_sky_rep(filename1, "halo_mass")[keep1]
         halo_mass[file_number+Nfiles] = read_dataset_cut_sky(filename2, "halo_mass")[keep2]
 
-        is_cen[file_number] = read_dataset_cut_sky_rep(filename1, "is_cen", n=n_rep)[keep1]
+        is_cen[file_number] = read_dataset_cut_sky_rep(filename1, "is_cen")[keep1]
         is_cen[file_number+Nfiles] = read_dataset_cut_sky(filename2, "is_cen", dtype="bool")[keep2]
 
-        is_res[file_number] = read_dataset_cut_sky_rep(filename1, "is_res", n=n_rep)[keep1]
+        is_res[file_number] = read_dataset_cut_sky_rep(filename1, "is_res")[keep1]
         is_res[file_number+Nfiles] = read_dataset_cut_sky(filename2, "is_res", dtype="bool")[keep2]
 
-        ra[file_number] = read_dataset_cut_sky_rep(filename1, "ra", n=n_rep)[keep1]
+        ra[file_number] = read_dataset_cut_sky_rep(filename1, "ra")[keep1]
         ra[file_number+Nfiles] = read_dataset_cut_sky(filename2, "ra")[keep2]
 
-        zcos[file_number] = read_dataset_cut_sky_rep(filename1, "zcos", n=n_rep)[keep1]
+        zcos[file_number] = read_dataset_cut_sky_rep(filename1, "zcos")[keep1]
         zcos[file_number+Nfiles] = read_dataset_cut_sky(filename2, "zcos")[keep2]
 
 
