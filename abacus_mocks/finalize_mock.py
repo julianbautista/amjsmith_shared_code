@@ -7,10 +7,43 @@ from desimodel.io import load_tiles
 from desimodel.footprint import is_point_in_desi
 import fitsio
 
-
-def hdf5_to_fits(input_file, output_file):
+def hdf5_to_fits_cubic(input_file, output_file):
     """
-    Convert the final mock from hdf5 to fits format
+    Convert the final cubic box mock from hdf5 to fits format
+    """
+    f = h5py.File(input_file)
+
+    N = len(f["Data/abs_mag"][...])
+    
+    data_fits = np.zeros(N, dtype=[('R_MAG_ABS', 'f4'), ('G_R_REST', 'f4'), 
+                                   ('HALO_MASS', 'f4'), ('cen', 'i4'), 
+                                   ('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
+                                   ('vx', 'f4'), ('vy', 'f4'), ('vz', 'f4')])
+
+    data_fits['R_MAG_ABS']   = f["Data/abs_mag"][...]
+    data_fits['G_R_REST']    = f["Data/g_r"][...]
+    data_fits['HALO_MASS']   = f["Data/halo_mass"][...]
+    data_fits['cen']         = 1 - f["Data/galaxy_type"][...]
+    data_fits['x']           = f["Data/pos"][...][:,0]
+    data_fits['y']           = f["Data/pos"][...][:,1]
+    data_fits['z']           = f["Data/pos"][...][:,2]
+    data_fits['vx']           = f["Data/vel"][...][:,0]
+    data_fits['vy']           = f["Data/vel"][...][:,1]
+    data_fits['vz']           = f["Data/vel"][...][:,2]
+
+    f.close()
+    
+    fits = fitsio.FITS(output_file, "rw")
+    fits.write(data_fits)
+    fits.close()
+
+
+
+
+
+def hdf5_to_fits_cutsky(input_file, output_file):
+    """
+    Convert the final cut sky mock from hdf5 to fits format
     """
     f = h5py.File(input_file, "r")
     
@@ -47,9 +80,9 @@ def hdf5_to_fits(input_file, output_file):
     fits.close()
     
     
-def fits_to_hdf5(input_file, output_file):
+def fits_to_hdf5_cutsky(input_file, output_file):
     """
-    Convert the final mock from fits to hdf5 format
+    Convert the final cut sky mock from fits to hdf5 format
     """
     
     data = fitsio.read(input_file)
