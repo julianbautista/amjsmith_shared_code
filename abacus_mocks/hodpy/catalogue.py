@@ -91,18 +91,23 @@ class Catalogue(object):
         """
 
         # get ra
-        ra = np.arctan(pos[:,1] / pos[:,0])
-        ind = np.logical_and(pos[:,1] < 0, pos[:,0] > 0)
-        ra[ind] += 2*np.pi
-        ind = pos[:,0] < 0
-        ra[ind] += np.pi
+        #ra = np.arctan(pos[:,1] / pos[:,0])
+        ra = np.arctan2(pos[:, 1], pos[:, 0])
+        #ind = np.logical_and(pos[:,1] < 0, pos[:,0] > 0)
+        
+        ra += np.pi
+        w = ra < 0.
+        print(np.sum(w), 'galaxies with ra<0')
+        
+        #ind = pos[:,0] < 0
+        #ra[ind] += np.pi
 
         # get z from comoving distance
         r_com = np.sqrt(np.sum(pos**2, axis=1))
         z = self.cosmology.redshift(r_com)
         
         # get dec
-        dec = (np.pi/2) - np.arccos(pos[:,2] / r_com)
+        dec = (np.pi/2) - np.arccos(pos[:, 2] / r_com)
 
         # convert radians to degrees
         ra *= 180 / np.pi

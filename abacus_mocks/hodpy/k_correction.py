@@ -198,7 +198,6 @@ class GAMA_KCorrection(KCorrection):
         """
         # Luminosity distance
         D_L = (1.+redshift) * self.cosmo.comoving_distance(redshift) 
-
         return absolute_magnitude + 5*np.log10(D_L) + 25 + \
                                               self.k(redshift,colour)
     

@@ -10,7 +10,7 @@ from hodpy import lookup
 
 
 def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr_r, kcorr_g,
-            hod, replication=(0,0,0), zcut=None, mag_cut=None, cosmology_orig=None):
+            hod, replication=(0,0,0), zcut=None, mag_cut=None, cosmology_orig=None, return_vel=False):
     """
     Creates a cut sky mock by converting the cartesian coordiantes of a cubic box mock to ra, dec, z.
     Magnitudes and colours are evolved with redshift
@@ -64,10 +64,13 @@ def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr
     zobs = cat.vel_to_zobs(zcos, vlos)
     
     if not zcut is None:
-        print("Applying redshift cut z < %.2f"%zcut)
-        keep = zobs <= zcut
+        keep = zcos <= zcut #-- changing zobs to zcos
+        print(f"Applying redshift cut z < {zcut:.2f}. {np.sum(keep)} out of {keep.size}")
+        print(f'Negative zobs: {np.sum(zobs<0)}')
         ra, dec, zcos, zobs, magnitude, is_cen, index = \
                 ra[keep], dec[keep], zcos[keep], zobs[keep], magnitude[keep], is_cen[keep], index[keep]
+        vel = velocity[keep,:]
+        print(vel.shape)
                   
     print("Rescaling magnitudes")
     lf = LuminosityFunctionTargetBGS(target_lf_file=lookup.target_lf, 
@@ -79,7 +82,7 @@ def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr
     #magnitude_new = lf.rescale_magnitude_to_target_box(magnitude, zsnap, volume,
     #                                cosmo_orig=cosmology_orig, cosmo_new=cosmology)
     # then rescale to get evolving target LF
-    magnitude_new = lf.rescale_magnitude(magnitude, np.ones(len(zobs))*zsnap, zobs,
+    magnitude_new = lf.rescale_magnitude(magnitude, np.ones(len(zcos))*zsnap, zcos, #-- changing zobs to zcos
                                         cosmo_orig=cosmology_orig, cosmo_new=cosmology)
     
     print("Assigning colours")
@@ -90,23 +93,28 @@ def cut_sky(position, velocity, magnitude, is_cen, cosmology, Lbox, zsnap, kcorr
     col = ColourNew(hod=hod)
     
     # randomly assign colours to centrals and satellites
-    colour_new[is_cen] = col.get_central_colour(magnitude_new[is_cen], zobs[is_cen])
-    colour_new[is_sat] = col.get_satellite_colour(magnitude_new[is_sat], zobs[is_sat])
+    colour_new[is_cen] = col.get_central_colour(magnitude_new[is_cen], zcos[is_cen]) #-- changing zobs to zcos
+    colour_new[is_sat] = col.get_satellite_colour(magnitude_new[is_sat], zcos[is_sat]) #-- changing zobs to zcos
     
     
     # get apparent magnitude
-    app_mag = kcorr_r.apparent_magnitude(magnitude_new, zobs, colour_new)
+    app_mag = kcorr_r.apparent_magnitude(magnitude_new, zcos, colour_new) #-- changing zobs to zcos
     
     # observer frame colours
-    colour_obs = colour_new + kcorr_g.k(zobs, colour_new) - kcorr_r.k(zobs, colour_new)
+    colour_obs = colour_new + kcorr_g.k(zcos, colour_new) - kcorr_r.k(zcos, colour_new) #-- changing zobs to zcos
     
     if not mag_cut is None:
-        print("Applying magnitude cut r < %.2f"%mag_cut)
         keep = app_mag <= mag_cut
+        print(f"Applying magnitude cut r < {mag_cut}, keeping {np.sum(keep)} out of {keep.size}")
+
         ra, dec, zcos, zobs, magnitude_new, app_mag, colour_new, colour_obs, index = \
                     ra[keep], dec[keep], zcos[keep], zobs[keep], magnitude_new[keep], \
                     app_mag[keep], colour_new[keep], colour_obs[keep], index[keep]
+        vel = vel[keep, :]
+        print(vel.shape)
         
-    
-    return ra, dec, zcos, zobs, magnitude_new, app_mag, colour_new, colour_obs, index
+    if return_vel: 
+        return ra, dec, zcos, zobs, magnitude_new, app_mag, colour_new, colour_obs, index, vel
+    else:
+        return ra, dec, zcos, zobs, magnitude_new, app_mag, colour_new, colour_obs, index
 
