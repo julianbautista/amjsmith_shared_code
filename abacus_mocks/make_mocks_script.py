@@ -12,15 +12,16 @@ import time
 
 #--
 realisation = int(sys.argv[1])
-
+phase = int(sys.argv[2])
 
 ###################################################
 # various variables to set, depending on the simulation we are using
-version = 'v0.2'
+
+version = 'v0.3'
 
 cosmo = 0   # AbacusSummit cosmology number
 simulation = "base"
-phase = 0
+#phase = 0
 Lbox = 2000. # box size (Mpc/h)
 snapshot_redshift = 0.2
 Nfiles = 34  # number of files the simulation is split into
@@ -78,10 +79,6 @@ print(n_observers, realisation, observer)
 
 
 
-#hod_param_file = lookup_path+"hod_fits/hod_c%03d.txt"%cosmo # Results of HOD fitting
-hod_param_file = ("/global/cfs/cdirs/desi/cosmosim/FirstGenMocks/AbacusSummit/CubicBox/BGS_v2/"+
-                f"z{snapshot_redshift:.3f}/AbacusSummit_base_c{cosmo:03d}_ph{phase:03d}/"+
-                "fitting_data/best_params.txt")
 
 
 ### locations of various files
@@ -91,6 +88,12 @@ hod_param_file = ("/global/cfs/cdirs/desi/cosmosim/FirstGenMocks/AbacusSummit/Cu
 lookup_path = f"lookups/{version}/z{zmax_low:.2f}_r{realisation:03d}"
 os.makedirs(lookup_path+"/mass_functions", exist_ok=True)
 os.makedirs(lookup_path+"/particles", exist_ok=True)
+
+#hod_param_file = lookup_path+"hod_fits/hod_c%03d.txt"%cosmo # Results of HOD fitting
+#hod_param_file = ("/global/cfs/cdirs/desi/cosmosim/FirstGenMocks/AbacusSummit/CubicBox/BGS_v2/"+
+#                f"z{snapshot_redshift:.3f}/AbacusSummit_base_c{cosmo:03d}_ph{phase:03d}/"+
+#                "fitting_data/best_params.txt")
+hod_param_file = "lookup/hod_fits/hod_Y1.txt"
 
 central_lookup_file   = lookup_path+"/central_magnitudes_c%03d_test.npy"%cosmo
 satellite_lookup_file = lookup_path+"/satellite_magnitudes_c%03d_test.npy"%cosmo
@@ -111,9 +114,9 @@ else:
 # output path to save temporary files
 output_path = f"/global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/{version}/{mock}/galaxy_catalogue_lowz_z{zmax_low:.2f}_r{realisation:03d}/"
 # output path to save the final cubic box and cut-sky mocks
-output_path_final = f"/global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/{version}/{mock}/galaxy_catalogue_lowz_z{zmax_low:.2f}_r{realisation:03d}/final/"
+#output_path_final = f"/global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/{version}/{mock}/galaxy_catalogue_lowz_z{zmax_low:.2f}_r{realisation:03d}/final/"
 os.makedirs(output_path, exist_ok=True)
-os.makedirs(output_path_final, exist_ok=True)
+#os.makedirs(output_path_final, exist_ok=True)
 
 # file names
 #galaxy_snapshot_file   = "galaxy_snapshot_%i.hdf5" #-- not needed for PV
@@ -132,14 +135,15 @@ overwrite = False
 
 do_cubic_box = False #- not needed for PV
 
-do_unresolved_halos = False #- about 400 secs now with new code
-do_unresolved_galaxies = False #- about 160 secs
-do_resolved_galaxies = False  #- about 400 secs
-do_rescale_magnitudes = False  #- about 50
+do_unresolved_halos = True #- about 400 secs now with new code
+do_unresolved_galaxies = True #- about 160 secs
+do_resolved_galaxies = True  #- about 400 secs
 
-do_cutsky_snapshot = False #- not needed for PV
+do_rescale_magnitudes = False  #- Not need anymore
 
-do_cutsky_lightcone = False #- 400 secs 
+#do_cutsky_snapshot = False #- not needed for PV
+
+do_cutsky_lightcone = True #- 400 secs 
 do_merge = True #- 80 secs 
 
 
@@ -154,26 +158,26 @@ mass_function = get_mass_function(input_file, mf_fit_file,
 
 
 ################################################
-if do_cubic_box:
-    print("\n==== MAKING CUBIC BOX MOCK\n")
+#if do_cubic_box:
+#    print("\n==== MAKING CUBIC BOX MOCK\n")
+#
+#    for file_number in range(Nfiles):
+#        print("\n== FILE NUMBER \n", file_number)
 
-    for file_number in range(Nfiles):
-        print("\n== FILE NUMBER \n", file_number)
-
-        input_file = abacus_path+mock+"/halos/z%.3f/halo_info/halo_info_%03d.asdf"%(snapshot_redshift, file_number)
-        output_file = output_path + galaxy_snapshot_file%file_number
+#        input_file = abacus_path+mock+"/halos/z%.3f/halo_info/halo_info_%03d.asdf"%(snapshot_redshift, file_number)
+#        output_file = output_path + galaxy_snapshot_file%file_number
         
-        if os.path.exists(output_file):
-            print(f' Output file exists : {output_file}')
-            if overwrite:
-                print(' Removing existing file !')
-                os.remove(output_file)
-            else:
-                continue
+#        if os.path.exists(output_file):
+#            print(f' Output file exists : {output_file}')
+#            if overwrite:
+#                print(' Removing existing file !')
+#                os.remove(output_file)
+#            else:
+#                continue
         
-        main(input_file, output_file, snapshot_redshift, mag_faint_snapshot,
-                cosmology, hod_param_file, central_lookup_file, satellite_lookup_file,
-                mass_function, cosmology_old=cosmology_mxxl)
+#        main(input_file, output_file, snapshot_redshift, mag_faint_snapshot,
+#                cosmology, hod_param_file, central_lookup_file, satellite_lookup_file,
+#                mass_function, cosmology_old=cosmology)
 
 
 ###############################################    
@@ -200,7 +204,7 @@ if do_unresolved_halos:
             mass_function, Nparticle, Nparticle_shell, box_size=Lbox,
             SODensity=SODensity, simulation=simulation, cosmo=cosmo, ph=phase,
             observer=observer, app_mag_faint=app_mag_faint+0.05,
-            cosmology_orig=cosmology_mxxl, Nfiles=Nfiles,
+            cosmology_orig=cosmology, Nfiles=Nfiles,
             overwrite=overwrite, rmax=rmax_low)
     t1 = time.time()
     print(f'Elapsed time: {t1-t0} sec')
@@ -230,7 +234,7 @@ if do_unresolved_galaxies:
                 mag_faint_lightcone, cosmology, hod_param_file, central_lookup_file,
                 satellite_lookup_file, mass_function, SODensity=SODensity, 
                 zmax=zmax_low, log_mass_max=mass_cut, 
-                cosmology_old=cosmology_mxxl, observer=observer, box_size=Lbox)
+                cosmology_old=cosmology, observer=observer, box_size=Lbox)
     t1 = time.time()
     print(f'Elapsed time: {t1-t0} sec')
     
@@ -259,7 +263,7 @@ if do_resolved_galaxies:
                 cosmology, hod_param_file, central_lookup_file,
                 satellite_lookup_file, mass_function, zmax=zmax_low,
                 observer=observer, log_mass_min=mass_cut, box_size=Lbox,
-                cosmology_old=cosmology_mxxl, replication=(0,0,0), overwrite=overwrite)
+                cosmology_old=cosmology, replication=(0,0,0), overwrite=overwrite)
         
         else:
             # need replications, (e.g. for small boxes)
@@ -274,7 +278,7 @@ if do_resolved_galaxies:
                             satellite_lookup_file, mass_function, 
                             zmax=zmax_low, observer=observer,
                             log_mass_min=mass_cut, box_size=Lbox,
-                            cosmology_old=cosmology_mxxl, replication=(i,j,k))
+                            cosmology_old=cosmology, replication=(i,j,k))
 
             # merge the replications into a single file
             merge_galaxy_lightcone_res(output_file)
@@ -299,7 +303,7 @@ if do_rescale_magnitudes:
     input_file_unres = output_path + galaxy_lightcone_unres
 
     rescale_lightcone_magnitudes(input_file_res, input_file_unres, zmax_low,
-                                snapshot_redshift, cosmology_mxxl, cosmology,
+                                snapshot_redshift, cosmology, cosmology,
                                 Nfiles=Nfiles, mag_dataset="abs_mag_rescaled",
                                 observer=observer)
     t1 = time.time()
@@ -335,43 +339,43 @@ if do_cutsky_lightcone:
         make_lightcone_lowz(resolved_file, unresolved_file, output_file, 
                 snapshot_redshift, app_mag_faint+0.05, cosmology, hod=hod,
                 box_size=Lbox, observer=observer, zmax=zmax_low,
-                cosmology_orig=cosmology_mxxl, mag_dataset="abs_mag_rescaled",
+                cosmology_orig=cosmology, mag_dataset="abs_mag",
                 overwrite=overwrite, return_vel=True)
     t1 = time.time()
     print(f'Elapsed time: {t1-t0} sec')
 
 
 ###############################################
-if do_cutsky_snapshot:
-    print("\n==== MAKE CUT-SKY FROM SNAPSHOT\n")
+#if do_cutsky_snapshot:
+#    print("\n==== MAKE CUT-SKY FROM SNAPSHOT\n")
 
     # make cut-sky mock, with evolving LF, from the snapshot files
     # this will use the magnitudes rescaled to match target LF exactly
 
-    for file_number in range(Nfiles):
-        print("FILE NUMBER", file_number)
+    #for file_number in range(Nfiles):
+    #    print("FILE NUMBER", file_number)
         
-        input_file = output_path+galaxy_snapshot_file%file_number
-        output_file = output_path+galaxy_cutsky%file_number
+    #    input_file = output_path+galaxy_snapshot_file%file_number
+    #    output_file = output_path+galaxy_cutsky%file_number
 
-        make_lightcone(input_file, output_file, snapshot_redshift,
-                app_mag_faint+0.05, cosmology, hod=hod, box_size=Lbox,
-                observer=observer, zmax=zmax, cosmology_orig=cosmology_mxxl,
-                mag_dataset="abs_mag_rescaled")
+    #    make_lightcone(input_file, output_file, snapshot_redshift,
+    #            app_mag_faint+0.05, cosmology, hod=hod, box_size=Lbox,
+    #            observer=observer, zmax=zmax, cosmology_orig=cosmology,
+    #            mag_dataset="abs_mag")
         
 
 
     ###############################################
-    print("\n==== MERGE CUBIC BOX FILES INTO FINAL MOCK \n")
+    #print("\n==== MERGE CUBIC BOX FILES INTO FINAL MOCK \n")
 
     # join snapshot files together into single file
     # use original (not rescaled) magnitudes
-    t0 = time.time()
-    merge_box(output_path, galaxy_snapshot_file, output_path_final,
-            galaxy_snapshot_final, fmt="fits", Nfiles=Nfiles, offset=Lbox/2.)
+    #t0 = time.time()
+    #merge_box(output_path, galaxy_snapshot_file, output_path_final,
+    #        galaxy_snapshot_final, fmt="fits", Nfiles=Nfiles, offset=Lbox/2.)
 
-    t1 = time.time()
-    print(f'Elapsed time: {t1-t0} sec')
+    #t1 = time.time()
+    #print(f'Elapsed time: {t1-t0} sec')
 
 ###############################################
 if do_merge:

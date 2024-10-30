@@ -95,9 +95,11 @@ class Catalogue(object):
         ra = np.arctan2(pos[:, 1], pos[:, 0])
         #ind = np.logical_and(pos[:,1] < 0, pos[:,0] > 0)
         
-        ra += np.pi
+        #- JEB 2024/10/30 modified this after v0.4
         w = ra < 0.
-        print(np.sum(w), 'galaxies with ra<0')
+        ra[w] += 2*np.pi 
+        ww = ra < 0. 
+        print(np.sum(ww), 'galaxies with ra<0')
         
         #ind = pos[:,0] < 0
         #ra[ind] += np.pi

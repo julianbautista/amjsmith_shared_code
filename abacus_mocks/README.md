@@ -29,10 +29,10 @@ Or for in batch job script:
 
 2. Apply DESI footprint 
 
-The following script reads one mock and adds a new STATUS column 
-containing the DESI mask. 
+The following script reads one mock and adds a new column 
+containing the DESI mask, for Y5 and Y1. 
 
-python -u apply_desi_footprint.py /global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/AbacusSummit_base_c000_ph000/galaxy_catalogue_lowz_z0.11_r000/final/galaxy_full_sky.fits  
+python -u apply_desi_footprint_hdf5.py /global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/v0.3/AbacusSummit_base_c000_ph000/galaxy_catalogue_lowz_z0.11_r000/BGS_PV_AbacusSummit_base_c000_ph000_r000_z0.11.dat.hdf5 
 
 3. Make randoms 
 
@@ -41,12 +41,14 @@ sample of randomly distributed RA, DEC points.
 
 Need to specify the seed for each random catalog. 
 
-python -u make_randoms.py /global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/AbacusSummit_base_c000_ph000/galaxy_catalogue_lowz_z0.11_r0${i}/final/galaxy_full_sky.fits $i 
+python -u make_randoms_hdf5.py /global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/v0.3/AbacusSummit_base_c000_ph000/galaxy_catalogue_lowz_z0.11_r000/BGS_PV_AbacusSummit_base_c000_ph000_r000_z0.11.dat.hdf5 0 
 
 The output random catalog has the same name as the input catalog 
 but with an .ran.fits extension 
 
 Also need to apply footprint to randoms
+
+python -u apply_desi_footprint_hdf5.py /global/cfs/cdirs/desi/users/bautista/bgs/Abacus_mocks/v0.3/AbacusSummit_base_c000_ph000/galaxy_catalogue_lowz_z0.11_r000/BGS_PV_AbacusSummit_base_c000_ph000_r000_z0.11.ran.hdf5
 
 4. Copy to DESI folders
 
