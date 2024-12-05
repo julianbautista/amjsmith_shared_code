@@ -17,7 +17,8 @@ phase = int(sys.argv[2])
 ###################################################
 # various variables to set, depending on the simulation we are using
 
-version = 'v0.3'
+version = 'v0.4'
+
 
 cosmo = 0   # AbacusSummit cosmology number
 simulation = "base"
@@ -121,7 +122,7 @@ os.makedirs(output_path, exist_ok=True)
 # file names
 #galaxy_snapshot_file   = "galaxy_snapshot_%i.hdf5" #-- not needed for PV
 
-halo_lightcone_unres   = "halo_lightcone_unresolved_%02d.hdf5.v2"
+halo_lightcone_unres   = "halo_lightcone_unresolved_%02d.hdf5"
 galaxy_lightcone_unres = "galaxy_lightcone_unresolved_%02d.hdf5"
 galaxy_lightcone_res   = "galaxy_lightcone_resolved_%02d.hdf5"
 galaxy_cutsky_low      = "galaxy_cut_sky_low_%02d.hdf5"

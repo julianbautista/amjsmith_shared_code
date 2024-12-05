@@ -1138,30 +1138,37 @@ def make_lightcone_lowz(resolved_file=None, unresolved_file=None, output_file=No
             print(f'Keeping old version of {output_file}')
             return 
 
+    unres=1
+    res=1
     if not os.path.exists(unresolved_file):
         print(f'Unresolved file not found : {unresolved_file}')
-        return 
+        unres=0
     if not os.path.exists(resolved_file):
         print(f'Resolved file not found : {resolved_file}')
-        return 
+        res=0
      
-    # read unresolved
-    pos, vel, log_mass, abs_mag, col, is_cen, is_res = \
+    if res:
+        # read resolved 
+        pos, vel, log_mass, abs_mag, col, is_cen, is_res = \
+                    read_galaxy_file(resolved_file, resolved=True, mag_name=mag_dataset)
+    if unres:
+        # read unresolved
+        pos_r, vel_r, log_mass_r, abs_mag_r, col_r, is_cen_r, is_res_r = \
                         read_galaxy_file(unresolved_file, resolved=False, mag_name=mag_dataset)
     
-    # read resolved 
-    pos_r, vel_r, log_mass_r, abs_mag_r, col_r, is_cen_r, is_res_r = \
-                    read_galaxy_file(resolved_file, resolved=True, mag_name=mag_dataset)
-
-    # combine into single array
-    pos      = np.concatenate([pos_r, pos])
-    vel      = np.concatenate([vel_r, vel])
-    log_mass = np.concatenate([log_mass_r, log_mass])
-    abs_mag  = np.concatenate([abs_mag_r, abs_mag])
-    col      = np.concatenate([col_r, col])
-    is_cen   = np.concatenate([is_cen_r, is_cen])
-    is_res   = np.concatenate([is_res_r, is_res])
+        # combine into single array
+        pos      = np.concatenate([pos_r, pos])
+        vel      = np.concatenate([vel_r, vel])
+        log_mass = np.concatenate([log_mass_r, log_mass])
+        abs_mag  = np.concatenate([abs_mag_r, abs_mag])
+        col      = np.concatenate([col_r, col])
+        is_cen   = np.concatenate([is_cen_r, is_cen])
+        is_res   = np.concatenate([is_res_r, is_res])
     
+    if res==0 and unres==0: 
+        print('Skipping ...') 
+        return
+
     print(f"Number of available galaxies: {len(abs_mag)}")
 
     # shift coordinates so observer at origin
