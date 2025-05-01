@@ -1009,6 +1009,7 @@ def read_galaxy_file(filename, resolved=True, mag_name="abs_mag"):
         pos = f["pos"][...]
         vel = f["vel"][...]
         is_cen = f["is_cen"][...]
+        halo_ind = f["halo_ind"][...]
         log_mass = np.log10(f["halo_mass"][...])
         is_res = np.ones(len(is_cen), dtype="bool") * resolved
         f.close()
@@ -1019,9 +1020,10 @@ def read_galaxy_file(filename, resolved=True, mag_name="abs_mag"):
         pos = np.zeros((0,3))
         vel = np.zeros((0,3))
         is_cen = np.zeros(0, dtype="bool")
+        halo_ind = np.zeros(0, dtype=int)
         log_mass = np.zeros(0)
         is_res = np.zeros(0, dtype="bool")
-    return pos, vel, log_mass, abs_mag, col, is_cen, is_res
+    return pos, vel, halo_ind, log_mass, abs_mag, col, is_cen, is_res
         
     
     
@@ -1046,7 +1048,7 @@ def make_lightcone(input_file, output_file, snapshot_redshift, mag_faint,
         mag_dataset:       string, name of the dataset of absolute magnitudes to read from
                                 the input mock file
     """
-    pos, vel, log_mass, abs_mag, col, is_cen, is_res = \
+    pos, vel, halo_ind, log_mass, abs_mag, col, is_cen, is_res = \
                         read_galaxy_file(input_file, resolved=True, mag_name=mag_dataset)
     
     # shift coordinates so observer at origin
@@ -1100,6 +1102,7 @@ def make_lightcone(input_file, output_file, snapshot_redshift, mag_faint,
                                                              compression="gzip")
                 f.create_dataset("%i%i%i/is_res"%(i,j,k), data=is_res[index], 
                                                              compression="gzip")
+                f.create_dataset("%i%i%i/halo_ind"%(i,j,k), data=halo_ind[index], compression="gzip")
                 f.create_dataset("%i%i%i/halo_mass"%(i,j,k), data=10**log_mass[index], 
                                                              compression="gzip")
                 f.close()
@@ -1149,16 +1152,17 @@ def make_lightcone_lowz(resolved_file=None, unresolved_file=None, output_file=No
      
     if res:
         # read resolved 
-        pos, vel, log_mass, abs_mag, col, is_cen, is_res = \
+        pos, vel, halo_ind, log_mass, abs_mag, col, is_cen, is_res = \
                     read_galaxy_file(resolved_file, resolved=True, mag_name=mag_dataset)
     if unres:
         # read unresolved
-        pos_r, vel_r, log_mass_r, abs_mag_r, col_r, is_cen_r, is_res_r = \
+        pos_r, vel_r, halo_ind_r, log_mass_r, abs_mag_r, col_r, is_cen_r, is_res_r = \
                         read_galaxy_file(unresolved_file, resolved=False, mag_name=mag_dataset)
     
         # combine into single array
         pos      = np.concatenate([pos_r, pos])
         vel      = np.concatenate([vel_r, vel])
+        halo_ind = np.concatenate([halo_ind_r, halo_ind])
         log_mass = np.concatenate([log_mass_r, log_mass])
         abs_mag  = np.concatenate([abs_mag_r, abs_mag])
         col      = np.concatenate([col_r, col])
@@ -1202,6 +1206,7 @@ def make_lightcone_lowz(resolved_file=None, unresolved_file=None, output_file=No
     f.create_dataset("col_obs", data=col_obs, compression="gzip")
     f.create_dataset("is_cen", data=is_cen[index], compression="gzip")
     f.create_dataset("is_res", data=is_res[index], compression="gzip")
+    f.create_dataset("halo_ind", data=halo_ind[index], compression="gzip")
     f.create_dataset("halo_mass", data=10**log_mass[index], compression="gzip")
     f.create_dataset("vel", data=vel_cut, compression="gzip")
     f.close()
