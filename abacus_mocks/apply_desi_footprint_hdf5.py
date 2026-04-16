@@ -17,23 +17,6 @@ def apply_y5_footprint(ra, dec):
     print(f"DESI Y5 footprint: {np.sum(mask)} out of {mask.size} galaxies")
     return mask 
 
-def apply_y1_footprint(ra, dec):
-    ''' Y1 completeness map'''
-    comp_map = '/global/cfs/cdirs/desi/users/bautista/bgs/BGS_BRIGHT_Y1_v1.2_full_comp.npy'
-
-    print('Assigning Y1 completeness from')
-    print(comp_map)
-
-    comp_map = np.load(comp_map, allow_pickle=True)
-    nside = hp.npix2nside(comp_map.size)
-    pix = hp.ang2pix(nside, np.pi/2-np.radians(dec), np.radians(ra))
-    comp_gal = comp_map[pix]
-
-    w = comp_gal > 0
-    print(f'DESI Y1 footprint: {np.sum(w)} our of {comp_gal.size} galaxies')
-
-    return comp_gal
-
 def get_completeness(ra, dec, mask):
     nside = hp.npix2nside(mask.size)
     pix = hp.ang2pix(nside, np.pi/2-np.radians(dec), np.radians(ra), nest=True)
@@ -77,6 +60,7 @@ y3_comp = get_y3_completeness(ra, dec)
 if 'Y3_COMP' in tab.keys():
     del tab['Y3_COMP']
 tab.create_dataset('Y3_COMP', data=y3_comp, compression='gzip')
+print(tab.keys())
 tab.close()
 
 

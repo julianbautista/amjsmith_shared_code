@@ -17,7 +17,7 @@ phase = int(sys.argv[2])
 ###################################################
 # various variables to set, depending on the simulation we are using
 
-version = 'v0.4'
+version = 'v1.0'
 
 
 cosmo = 0   # AbacusSummit cosmology number
@@ -128,7 +128,7 @@ galaxy_lightcone_res   = "galaxy_lightcone_resolved_%02d.hdf5"
 galaxy_cutsky_low      = "galaxy_cut_sky_low_%02d.hdf5"
 galaxy_cutsky          = "galaxy_cut_sky_%02d.hdf5"
 
-galaxy_cutsky_final   = f"BGS_PV_AbacusSummit_{simulation}_c{cosmo:03d}_ph{phase:03d}_r{realisation:03d}_z{zmax:.2f}.dat.hdf5"
+galaxy_cutsky_final   = f"BGS_PV_AbacusSummit_{simulation}_c{cosmo:03d}_ph{phase:03d}_r{realisation:03d}_zsnap{snapshot_redshift:.2f}_zmax{zmax:.2f}.dat.hdf5"
 
 #galaxy_snapshot_final = "galaxy_snapshot.fits"  #-- not needed for PV
 
